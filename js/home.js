@@ -86,13 +86,26 @@
     var all = App.prodList();
     var list;
     if (currentCat === 'home') {
-      var seen = {};
-      list = all.filter(function (p) {
+      // Home uses a round-robin catalogue: one item from every category,
+      // then the second item from every category, and so on (up to 30).
+      var groups = {};
+      var groupOrder = [];
+      all.forEach(function (p) {
         var key = p.categoryId || '__uncategorized';
-        if (seen[key]) return false;
-        seen[key] = true;
-        return true;
+        if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+        groups[key].push(p);
       });
+      list = [];
+      for (var round = 0; round < 30 && list.length < 30; round++) {
+        var added = false;
+        groupOrder.forEach(function (key) {
+          if (groups[key][round] && list.length < 30) {
+            list.push(groups[key][round]);
+            added = true;
+          }
+        });
+        if (!added) break;
+      }
     } else {
       list = all.filter(function (p) { return p.categoryId === currentCat; });
     }
