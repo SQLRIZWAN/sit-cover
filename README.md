@@ -37,8 +37,8 @@ Every push to `main` auto-deploys to GitHub Pages. The workflow `.github/workflo
 |---|---|
 | `FIREBASE_CONFIG` | whole firebaseConfig JSON object |
 | `GEMINI_API_KEY` | Google AI Studio key |
-| `CLOUDINARY_CLOUD_NAME` | your Cloudinary cloud name (optional, enables uploads) |
-| `CLOUDINARY_UPLOAD_PRESET` | your **unsigned** upload preset (optional) |
+
+Photos/videos & payment screenshots are compressed in the browser and saved directly into Firebase Realtime Database (`media/`, `order_shots/`) — no third-party upload service needed.
 
 ## Local development
 

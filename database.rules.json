@@ -5,6 +5,13 @@
     "config": { ".read": true, ".write": "auth != null" },
     "categories": { ".read": true, ".write": "auth != null" },
     "products": { ".read": true, ".write": "auth != null" },
+    "media": { ".read": true, ".write": "auth != null" },
+    "order_shots": {
+      ".read": "auth != null",
+      "$shotId": {
+        ".write": "auth != null || (!data.exists() && newData.isString())"
+      }
+    },
     "orders": {
       ".read": "auth != null",
       ".indexOn": ["createdAt", "status"],

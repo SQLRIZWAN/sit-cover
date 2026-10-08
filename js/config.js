@@ -10,9 +10,5 @@ window.APP_CONFIG = {
     "measurementId": ""
   },
   "geminiApiKey": "",
-  "geminiModels": ["gemini-3.5-flash-lite", "gemini-2.5-flash"],
-  "cloudinary": {
-    "cloudName": "",
-    "uploadPreset": ""
-  }
+  "geminiModels": ["gemini-3.5-flash-lite", "gemini-2.5-flash"]
 };

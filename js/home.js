@@ -51,7 +51,7 @@
   function cardHTML(p) {
     var m = App.firstMedia(p);
     var thumb = m ? App.mediaThumb(m, 400) : '';
-    var isVideo = m && m.type === 'video';
+    var isVideo = (m && m.type === 'video') || p.videoFirst === true;
     var out = p.inStock === false;
 
     var media;

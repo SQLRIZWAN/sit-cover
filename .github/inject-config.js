@@ -30,11 +30,7 @@ const cfg = {
     measurementId: fb.measurementId || ''
   },
   geminiApiKey: (process.env.GEMINI_API_KEY || '').trim(),
-  geminiModels: ['gemini-3.5-flash-lite', 'gemini-2.5-flash'],
-  cloudinary: {
-    cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim(),
-    uploadPreset: (process.env.CLOUDINARY_UPLOAD_PRESET || '').trim()
-  }
+  geminiModels: ['gemini-3.5-flash-lite', 'gemini-2.5-flash']
 };
 
 const out = path.join(__dirname, '..', 'js', 'config.js');
@@ -43,4 +39,3 @@ fs.writeFileSync(out, 'window.APP_CONFIG = ' + JSON.stringify(cfg, null, 2) + ';
 console.log('config.js injected');
 console.log('  firebase  : ' + cfg.firebase.projectId + ' @ ' + cfg.firebase.databaseURL);
 console.log('  gemini    : ' + (cfg.geminiApiKey ? 'set (key …' + cfg.geminiApiKey.slice(-6) + ')' : 'MISSING'));
-console.log('  cloudinary: ' + (cfg.cloudinary.cloudName ? cfg.cloudinary.cloudName + ' / ' + cfg.cloudinary.uploadPreset : 'not set (uploads disabled)'));

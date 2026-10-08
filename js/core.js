@@ -170,7 +170,9 @@
   };
 
   App.firstMedia = function (p) {
-    return (p && p.media && p.media.length) ? p.media[0] : null;
+    if (p && p.media && p.media.length) return p.media[0];
+    if (p && p.thumb) return { type: 'image', url: p.thumb, thumb: p.thumb };
+    return null;
   };
 
   App.haversine = function (lat1, lng1, lat2, lng2) {
@@ -210,7 +212,7 @@
     add: function (p, qty) {
       var arr = App.Cart.list();
       var m = App.firstMedia(p);
-      var image = m ? App.mediaThumb(m, 300) : '';
+      var image = p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '');
       var found = null;
       for (var i = 0; i < arr.length; i++) if (arr[i].id === p.id) found = arr[i];
       if (found) {
@@ -228,7 +230,7 @@
       var m = App.firstMedia(p);
       App.Cart.save([{
         id: p.id, name: p.name, price: Number(p.price) || 0,
-        qty: qty || 1, image: m ? App.mediaThumb(m, 300) : ''
+        qty: qty || 1, image: p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '')
       }]);
     },
     setQty: function (id, qty) {
@@ -260,44 +262,148 @@
     el.className = 'cart-n' + (n ? '' : ' hide');
   };
 
+  function readDataURL(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result || '')); };
+      fr.onerror = function () { reject(new Error('Cannot read file')); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function compressImage(file, maxEdge, quality) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var w = img.naturalWidth || 1;
+          var h = img.naturalHeight || 1;
+          var scale = Math.min(1, maxEdge / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * scale));
+          c.height = Math.max(1, Math.round(h * scale));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          var t = 'image/jpeg';
+          try {
+            if (c.toDataURL('image/webp').indexOf('data:image/webp') === 0) t = 'image/webp';
+          } catch (e1) {}
+          resolve(c.toDataURL(t, quality));
+        } catch (e) { reject(new Error('Cannot process image')); }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('Cannot read image file'));
+      };
+      img.src = url;
+    });
+  }
+
+  function videoPoster(file) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(file);
+      var v = document.createElement('video');
+      var done = false;
+      var out = '';
+      function finish() {
+        if (done) return;
+        done = true;
+        try { URL.revokeObjectURL(url); } catch (e) {}
+        resolve(out);
+      }
+      v.preload = 'metadata';
+      v.muted = true;
+      v.playsInline = true;
+      v.onloadeddata = function () { try { v.currentTime = 0.1; } catch (e) { finish(); } };
+      v.onseeked = function () {
+        try {
+          var w = v.videoWidth || 480;
+          var h = v.videoHeight || 480;
+          var scale = Math.min(1, 480 / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * scale));
+          c.height = Math.max(1, Math.round(h * scale));
+          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+          out = c.toDataURL('image/webp', 0.72) || '';
+        } catch (e) {}
+        finish();
+      };
+      v.onerror = function () { finish(); };
+      setTimeout(finish, 7000);
+      v.src = url;
+    });
+  }
+
+  App.makeVariant = function (dataUrl, maxEdge, quality) {
+    return new Promise(function (resolve, reject) {
+      if (!dataUrl) { resolve(''); return; }
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var w = img.naturalWidth || 1;
+          var h = img.naturalHeight || 1;
+          var scale = Math.min(1, maxEdge / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * scale));
+          c.height = Math.max(1, Math.round(h * scale));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          var t = 'image/jpeg';
+          try {
+            if (c.toDataURL('image/webp').indexOf('data:image/webp') === 0) t = 'image/webp';
+          } catch (e1) {}
+          resolve(c.toDataURL(t, quality));
+        } catch (e) { resolve(''); }
+      };
+      img.onerror = function () { resolve(''); };
+      img.src = dataUrl;
+    });
+  };
+
   App.cloudUpload = function (file, onProgress) {
     return new Promise(function (resolve, reject) {
-      var c = (window.APP_CONFIG && APP_CONFIG.cloudinary) || {};
-      if (!c.cloudName || !c.uploadPreset) {
-        reject(new Error('Cloudinary is not configured yet'));
-        return;
-      }
-      var fd = new FormData();
-      fd.append('file', file);
-      fd.append('upload_preset', c.uploadPreset);
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', 'https://api.cloudinary.com/v1_1/' + encodeURIComponent(c.cloudName) + '/auto/upload');
-      xhr.upload.onprogress = function (e) {
-        if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
-      };
-      xhr.onload = function () {
-        try {
-          var j = JSON.parse(xhr.responseText);
-          if (xhr.status >= 200 && xhr.status < 300 && j.secure_url) {
-            var media = {
-              type: j.resource_type === 'video' ? 'video' : 'image',
-              url: j.secure_url,
-              publicId: j.public_id,
-              cloud: c.cloudName,
-              format: j.format || '',
-              bytes: j.bytes || 0
-            };
-            if (media.type === 'video' && media.url.indexOf('/upload/') > -1) {
-              media.thumb = media.url.replace('/upload/', '/upload/so_0,f_jpg,q_auto/');
-            }
-            resolve(media);
-          } else {
-            reject(new Error(j.error && j.error.message ? j.error.message : 'Upload failed (HTTP ' + xhr.status + ')'));
+      try {
+        if (!file || !file.size) { reject(new Error('No file selected')); return; }
+        var isVideo = /^video\//.test(file.type || '');
+        if (!isVideo && !/^image\//.test(file.type || '')) {
+          reject(new Error('Only images (JPG/PNG/WEBP) and videos (MP4/WEBM) are allowed'));
+          return;
+        }
+        if (onProgress) onProgress(15);
+        if (isVideo) {
+          if (file.size > 2.5 * 1024 * 1024) {
+            reject(new Error('Video too large (max 2.5 MB) — trim it or send a photo instead'));
+            return;
           }
-        } catch (e) { reject(new Error('Upload response error')); }
-      };
-      xhr.onerror = function () { reject(new Error('Network error during upload')); };
-      xhr.send(fd);
+          videoPoster(file).then(function (poster) {
+            if (onProgress) onProgress(60);
+            return readDataURL(file).then(function (data) {
+              if (onProgress) onProgress(100);
+              resolve({
+                type: 'video',
+                url: data,
+                thumb: poster,
+                publicId: '',
+                cloud: 'inline',
+                format: String(file.name || '').split('.').pop() || 'mp4',
+                bytes: file.size
+              });
+            });
+          }).catch(function (e) { reject(e); });
+        } else {
+          compressImage(file, 1400, 0.82).then(function (data) {
+            if (onProgress) onProgress(100);
+            resolve({
+              type: 'image',
+              url: data,
+              publicId: '',
+              cloud: 'inline',
+              format: data.indexOf('data:image/webp') === 0 ? 'webp' : 'jpeg',
+              bytes: Math.round(data.length * 0.75)
+            });
+          }).catch(function (e) { reject(e); });
+        }
+      } catch (e) { reject(e); }
     });
   };
 
@@ -322,8 +428,8 @@
     if (o.customer.lat != null) {
       lines.push('Map: https://maps.google.com/?q=' + o.customer.lat + ',' + o.customer.lng);
     }
-    if (o.paymentScreenshot && o.paymentScreenshot.url) {
-      lines.push('Payment screenshot: ' + o.paymentScreenshot.url);
+    if (o.paymentScreenshot) {
+      lines.push('Payment screenshot uploaded — see it in the admin panel.');
     }
     return lines.join('\n');
   };

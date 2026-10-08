@@ -352,7 +352,6 @@
       App.DB.ref('aiScans').push({
         imageUrl: imageUrl || '',
         publicId: publicId || '',
-        cloud: ((window.APP_CONFIG && APP_CONFIG.cloudinary) || {}).cloudName || '',
         query: query || '',
         matched: matched || '',
         createdAt: firebase.database.ServerValue.TIMESTAMP
@@ -427,9 +426,7 @@
   function tryCloudSave(file, query, reply) {
     try {
       if (!App.DB) return;
-      App.cloudUpload(file).then(function (media) {
-        saveScan(media.url, media.publicId, query, matchedIds(reply).join(','));
-      }).catch(function () {});
+      saveScan('', '', query, matchedIds(reply).join(','));
     } catch (e) {}
   }
 

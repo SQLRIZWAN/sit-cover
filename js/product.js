@@ -4,7 +4,25 @@
   var pid = null;
   try { pid = new URLSearchParams(location.search).get('id'); } catch (e) {}
   var mediaIdx = 0;
+  var mediaCache = {};
+  var mediaAsked = {};
   var root = document.getElementById('pdRoot');
+
+  function ensureMedia(p, cb) {
+    if (p && p.media && p.media.length) { mediaCache[p.id] = p.media; cb(); return; }
+    if (mediaCache[p.id] || mediaAsked[p.id]) { cb(); return; }
+    mediaAsked[p.id] = true;
+    if (!App.DB) { cb(); return; }
+    App.DB.ref('media/' + p.id).once('value').then(function (s) {
+      var v = s.val() || {};
+      var arr = [];
+      Object.keys(v).sort().forEach(function (k) {
+        if (v[k] && v[k].url) arr.push(v[k]);
+      });
+      mediaCache[p.id] = arr;
+      cb();
+    }).catch(function () { mediaAsked[p.id] = false; cb(); });
+  }
 
   function catName(id) {
     var c = (App.state.categories || {})[id];
@@ -51,7 +69,8 @@
       return;
     }
 
-    var media = p.media || [];
+    var media = p.media || mediaCache[p.id] || [];
+    if (!media.length && p.mediaCount) ensureMedia(p, render);
     if (mediaIdx >= media.length) mediaIdx = 0;
     var m = media[mediaIdx] || null;
     var out = p.inStock === false;

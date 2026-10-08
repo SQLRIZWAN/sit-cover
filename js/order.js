@@ -445,7 +445,7 @@
         lat: S.customer.lat,
         lng: S.customer.lng
       },
-      paymentScreenshot: S.ss ? { url: S.ss.url, publicId: S.ss.publicId || '', cloud: S.ss.cloud || '' } : null,
+      paymentScreenshot: S.ss ? { inline: 1 } : null,
       status: 'new',
       whatsappSent: false,
       createdAt: firebase.database.ServerValue.TIMESTAMP
@@ -480,6 +480,10 @@
           lastOrder: ts
         };
       });
+
+      if (S.ss && S.ss.url) {
+        App.DB.ref('order_shots/' + id).set(S.ss.url).catch(function () {});
+      }
 
       saveBuyer();
       App.Cart.removeIds(sel.map(function (x) { return x.id; }));
