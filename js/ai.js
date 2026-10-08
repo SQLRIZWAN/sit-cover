@@ -19,15 +19,14 @@
     var root = document.createElement('div');
 
     root.innerHTML =
-      '<button class="ai-fab" id="aiFab" title="AI shopping assistant (drag me anywhere)">' +
-        '<span class="ai-tip">Ask AI • drag me</span>' +
-        '<svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1h2.5A3.5 3.5 0 0 1 20 8.5V11a1 1 0 0 1-2 0V9h-2v6h1a1 1 0 0 1 0 2H9a1 1 0 0 1 0-2h1V9H8v2a1 1 0 0 1-2 0V8.5A3.5 3.5 0 0 1 9.5 5H12V4a2 2 0 0 1 2-2zM7 17.5A3.5 3.5 0 0 1 3.5 14v-.5A3.5 3.5 0 0 1 7 10h10a3.5 3.5 0 0 1 3.5 3.5v.5a3.5 3.5 0 0 1-3.5 3.5H14v1.5h2a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2h2V17.5z"/></svg>' +
+      '<button class="ai-fab" id="aiFab" title="Open shop assistant" aria-label="Open shop assistant">' +
+        '<span class="ai-spark">✦</span>' +
         '<span class="ai-dot"></span>' +
       '</button>' +
       '<div class="ai-panel" id="aiPanel" hidden>' +
         '<div class="ai-head">' +
-          '<div class="ai-av"><svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1h2.5A3.5 3.5 0 0 1 20 8.5V11a1 1 0 0 1-2 0V9h-2v6h1a1 1 0 0 1 0 2H9a1 1 0 0 1 0-2h1V9H8v2a1 1 0 0 1-2 0V8.5A3.5 3.5 0 0 1 9.5 5H12V4a2 2 0 0 1 2-2z"/></svg></div>' +
-          '<div><b>Shop AI</b><small>Ask anything · send a photo</small></div>' +
+          '<div class="ai-av"><span class="ai-spark">✦</span></div>' +
+          '<div><b>Shop Assistant</b><small>Product help</small></div>' +
           '<button class="hbtn" id="aiMin" title="Minimize">–</button>' +
           '<button class="hbtn" id="aiClose" title="Close">✕</button>' +
         '</div>' +
@@ -50,7 +49,6 @@
     attBox = el('aiAtt');
     attImg = el('aiAttImg');
 
-    restorePos();
     bind();
   }
 
@@ -107,50 +105,16 @@
     open = v;
     panel.hidden = !v;
     if (v) {
-      placePanel();
       if (!greeted) {
         greeted = true;
-        push('bot', 'Hi! 👋 I am your shop assistant. Ask me about any product — or tap 📷 and send a photo of the item you need, I will find it in our shop for you.', true);
+        push('bot', 'Hello! 👋 Ask me about any product and I will help you find it.', true);
       }
       setTimeout(function () { try { input.focus(); } catch (e) {} }, 120);
     }
   }
 
   function bind() {
-    var startX = 0, startY = 0, origX = 0, origY = 0, pid = null;
-
-    fab.addEventListener('pointerdown', function (e) {
-      pid = e.pointerId;
-      startX = e.clientX;
-      startY = e.clientY;
-      origX = parseFloat(fab.style.left) || 0;
-      origY = parseFloat(fab.style.top) || 0;
-      dragging = true;
-      moved = false;
-      try { fab.setPointerCapture(pid); } catch (err) {}
-    });
-
-    fab.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
-      var dx = e.clientX - startX;
-      var dy = e.clientY - startY;
-      if (!moved && Math.abs(dx) + Math.abs(dy) > 7) moved = true;
-      if (moved) {
-        var p = clampPos(origX + dx, origY + dy);
-        fab.style.left = p.x + 'px';
-        fab.style.top = p.y + 'px';
-        if (open) placePanel();
-      }
-    });
-
-    function endDrag() {
-      if (!dragging) return;
-      dragging = false;
-      if (moved) savePos();
-      else setOpen(!open);
-    }
-    fab.addEventListener('pointerup', endDrag);
-    fab.addEventListener('pointercancel', function () { dragging = false; });
+    fab.addEventListener('click', function () { setOpen(!open); });
 
     el('aiClose').addEventListener('click', function () { setOpen(false); });
     el('aiMin').addEventListener('click', function () { setOpen(false); });

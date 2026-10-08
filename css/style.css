@@ -359,7 +359,7 @@ body { top: 0 !important; position: static !important; }
 main { flex: 1 0 auto; width: 100%; }
 .sect { padding: 20px 0 40px; }
 .shop-hero { width: min(100%, 1280px); margin: 0 auto; padding: 10px 14px 0; }
-.shop-hero img { width: 100%; max-height: 250px; object-fit: cover; object-position: center; border-radius: 18px; box-shadow: var(--sh); }
+.shop-hero img { width: 100%; height: auto; object-fit: contain; border-radius: 18px; box-shadow: var(--sh); }
 .shop-search { display:flex; align-items:center; gap:8px; margin-top:14px; padding-left:14px; padding-right:14px; background:#fff; border:1px solid var(--line); border-radius:999px; box-shadow:var(--sh); }
 .shop-search span { font-size:26px; line-height:1; color:var(--gold-d); }
 .shop-search input { width:100%; border:0; outline:0; padding:12px 4px; background:transparent; font:inherit; }
@@ -728,6 +728,10 @@ main { flex: 1 0 auto; width: 100%; }
   color: var(--navy);
   box-shadow: 0 14px 34px -10px rgba(217, 119, 6, .75);
   z-index: 900;
+  left: auto !important;
+  top: auto !important;
+  right: 18px;
+  bottom: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -738,6 +742,7 @@ main { flex: 1 0 auto; width: 100%; }
 }
 .ai-fab:active { transform: scale(1.06); }
 .ai-fab svg { width: 26px; height: 26px; fill: var(--navy); pointer-events: none; }
+.ai-spark { font-size: 29px; line-height: 1; font-weight: 800; color: var(--navy); pointer-events: none; }
 .ai-fab .ai-dot {
   position: absolute;
   top: 2px;
@@ -748,23 +753,6 @@ main { flex: 1 0 auto; width: 100%; }
   border: 2.5px solid #fff;
   border-radius: 50%;
 }
-.ai-fab .ai-tip {
-  position: absolute;
-  right: 60px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--navy);
-  color: #fff;
-  font-size: 12.5px;
-  font-weight: 700;
-  padding: 7px 12px;
-  border-radius: 9px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: .2s;
-}
-.ai-fab:hover .ai-tip { opacity: 1; }
 
 .ai-panel {
   position: fixed;
@@ -774,6 +762,10 @@ main { flex: 1 0 auto; width: 100%; }
   border-radius: 18px;
   box-shadow: 0 30px 70px -20px rgba(15, 23, 42, .55);
   z-index: 901;
+  left: auto !important;
+  top: auto !important;
+  right: 18px;
+  bottom: 82px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -791,6 +783,7 @@ main { flex: 1 0 auto; width: 100%; }
 }
 .ai-av { width: 38px; height: 38px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .ai-av svg { width: 22px; height: 22px; fill: var(--navy); }
+.ai-av .ai-spark { font-size: 23px; }
 .ai-head b { display: block; font-size: 14.5px; line-height: 1.2; }
 .ai-head small { font-size: 11.5px; color: var(--gold-l); }
 .ai-head .hbtn { margin-left: auto; width: 32px; height: 32px; border-radius: 9px; color: #cbd5e1; font-size: 17px; }
@@ -921,7 +914,7 @@ main { flex: 1 0 auto; width: 100%; }
 }
 @media (max-width: 700px) {
   .shop-hero { padding: 8px 10px 0; }
-  .shop-hero img { height: 132px; border-radius: 12px; }
+  .shop-hero img { height: auto; border-radius: 12px; }
   .b-name { font-size: 14px; }
   .banner-in { gap: 8px; }
   .b-logo { width: 40px; height: 40px; }
