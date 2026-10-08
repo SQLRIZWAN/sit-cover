@@ -31,7 +31,7 @@
 
     bar.innerHTML = '<div class="wrap"><div class="tabs-in">' + items.map(function (i) {
       return '<button class="tab' + (i.id === currentCat ? ' on' : '') + '" data-cat="' + App.esc(i.id) + '">' +
-        App.esc(i.icon) + ' ' + App.esc(i.name) + '</button>';
+        App.iconHTML(i.icon, 'tab-ico') + '<span>' + App.esc(i.name) + '</span></button>';
     }).join('') + '</div></div>';
 
     Array.prototype.forEach.call(bar.querySelectorAll('.tab'), function (btn) {

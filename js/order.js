@@ -99,7 +99,11 @@
         '<button type="button" class="ck' + (on ? ' on' : '') + '" data-act="tick" aria-label="select"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></button>' +
         '<div class="cart-img">' + (x.image ? '<img src="' + App.esc(x.image) + '" alt="" loading="lazy">' : '<div style="display:flex;height:100%;align-items:center;justify-content:center">🛍️</div>') + '</div>' +
         '<div class="cart-nm"><b>' + App.esc(x.name) + '</b><span>' + App.fmtKD(x.price) + ' each</span>' +
-          '<div class="qty"><button type="button" data-act="minus">−</button><span>' + (x.qty || 1) + '</span><button type="button" data-act="plus">+</button></div>' +
+          '<div class="qty" role="group" aria-label="Quantity for ' + App.esc(x.name) + '">' +
+            '<button type="button" class="q-b" data-act="minus" aria-label="Decrease quantity of ' + App.esc(x.name) + '">−</button>' +
+            '<span class="q-n" aria-live="polite">' + (x.qty || 1) + '</span>' +
+            '<button type="button" class="q-b" data-act="plus" aria-label="Increase quantity of ' + App.esc(x.name) + '">+</button>' +
+          '</div>' +
         '</div>' +
         '<div class="cart-rt"><b>' + App.fmtKD((Number(x.price) || 0) * (x.qty || 1)) + '</b>' +
           '<button type="button" class="cart-del" data-act="del">Remove</button></div>' +
@@ -121,14 +125,23 @@
   }
 
   function handleCartAction(btn) {
-    var row = btn.parentNode;
-    while (row && !row.classList.contains('cart-row')) row = row.parentNode;
+    var row = btn;
+    while (row && !(row.classList && row.classList.contains('cart-row'))) row = row.parentNode;
     if (!row) return;
     var id = row.getAttribute('data-id');
     var act = btn.getAttribute('data-act');
     var items = App.Cart.list();
     var item = null;
-    items.forEach(function (x) { if (String(x.id) === String(id)) item = x; });
+    items.forEach(function (x) { if (!item && String(x.id) === String(id)) item = x; });
+
+    // Older carts were saved without an id (a previous bug) — fall back to the
+    // visible product name so the +/- controls still work.
+    if (!item) {
+      var nameEl = row.querySelector('.cart-nm b');
+      var nm = nameEl ? nameEl.textContent : '';
+      items.forEach(function (x) { if (!item && x.name === nm) item = x; });
+      if (item) id = item.id;
+    }
     if (!item) return;
 
     if (act === 'tick') S.sel[id] = !S.sel[id];
@@ -177,7 +190,7 @@
     var box = el('locInfo');
     if (!box) return;
     if (S.customer.lat == null) {
-      box.innerHTML = '<b>No location selected yet.</b> Pick on the map or use “Use my location” so we can calculate delivery automatically.';
+      box.innerHTML = '<b>No location selected yet.</b> Tap “Use my location” so we can calculate the distance and the exact delivery fee automatically.';
       return;
     }
     var d = S.distance != null ? S.distance.toFixed(1) + ' km' : '—';
@@ -336,7 +349,16 @@
     if (!(el('fArea').value || '').trim()) { App.toast('Please enter your area', 'err'); el('fArea').focus(); return false; }
     S.customer.address = addressFromForm();
 
-    S.distance = null;
+    // Keep (or recompute) the shop→customer distance so the tiered delivery
+    // fee in step 3 is based on real kilometres, not a flat rate.
+    if (S.customer.lat != null && S.customer.lng != null) {
+      var cc = App.cfg();
+      S.distance = App.haversine(Number(cc.shopLat), Number(cc.shopLng), S.customer.lat, S.customer.lng);
+      S.distance = Math.round(S.distance * 10) / 10;
+    } else {
+      S.distance = null;
+    }
+
     saveBuyer();
     return true;
   }
@@ -419,30 +441,56 @@
   function setBtnLoading(btn, loading, text) {
     if (!btn) return;
     if (loading) {
-      btn.dataset.old = btn.textContent;
+      if (btn.dataset.old === undefined) btn.dataset.old = btn.textContent;
       btn.textContent = text || 'Please wait…';
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
     } else {
       btn.textContent = btn.dataset.old || 'Submit Order';
       btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.classList.remove('is-loading');
+      btn.style.removeProperty('--submit-progress');
     }
   }
 
+  // Stage-by-stage progress so the customer always knows what is happening
+  // and roughly how long it has been running.
   function startSubmitProgress(btn) {
     var started = Date.now();
+    var STAGES = [
+      { at: 0, label: 'Saving order to the shop…' },
+      { at: 900, label: 'Confirming with the shop system…' },
+      { at: 2400, label: 'Still working — check your connection…' }
+    ];
+    function stageFor(ms) {
+      var s = STAGES[0];
+      for (var i = 0; i < STAGES.length; i++) if (ms >= STAGES[i].at) s = STAGES[i];
+      return s;
+    }
     function tick() {
-      var seconds = Math.floor((Date.now() - started) / 1000);
-      var progress = Math.min(92, 12 + seconds * 7);
+      var ms = Date.now() - started;
+      var seconds = Math.floor(ms / 1000);
+      var progress = Math.min(94, 10 + Math.round(ms / 90));
       btn.classList.add('is-loading');
       btn.style.setProperty('--submit-progress', progress + '%');
-      btn.textContent = 'Submitting order… ' + seconds + 's';
+      btn.innerHTML = '<span class="spin" aria-hidden="true"></span>' +
+        App.esc(stageFor(ms).label) +
+        ' <b class="sec">' + seconds + 's</b>';
+      var live = el('submitLive');
+      if (live) live.textContent = stageFor(ms).label + ' ' + seconds + ' seconds elapsed.';
     }
     tick();
-    var timer = setInterval(tick, 500);
-    return function () {
+    var timer = setInterval(tick, 400);
+    return function (finalLabel) {
       clearInterval(timer);
       btn.classList.remove('is-loading');
       btn.style.removeProperty('--submit-progress');
+      if (finalLabel) {
+        btn.innerHTML = '<span class="spin" aria-hidden="true"></span>' + App.esc(finalLabel);
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+      }
     };
   }
 
@@ -465,7 +513,7 @@
     if (!sel.length) { App.toast('No products selected', 'err'); goStep(1); return; }
     if (!S.customer.name || !S.customer.phone) { App.toast('Missing details — go back a step', 'err'); goStep(2); return; }
 
-    setBtnLoading(btn, true, 'Submitting order… 0s');
+    setBtnLoading(btn, true, 'Submitting order…');
     var stopProgress = startSubmitProgress(btn);
 
     var cfg = App.cfg();
@@ -511,7 +559,7 @@
     });
 
     Promise.race([savePromise, saveTimeout]).then(function () {
-      stopProgress();
+      stopProgress('Order saved ✓');
       var ts = Date.now();
       var rev = total;
 
@@ -551,6 +599,54 @@
     });
   }
 
+  function doneSummaryHTML(order) {
+    var c = order.customer || {};
+    var rows = (order.items || []).map(function (it) {
+      return '<div class="summary-line"><span>' + App.esc(it.name) +
+        ' <i class="x">×' + Number(it.qty || 1) + '</i></span>' +
+        '<b>' + App.fmtKD(Number(it.price) * Number(it.qty)) + '</b></div>';
+    }).join('');
+
+    return '<div class="done-sum">' +
+      '<div class="ds-sec">' +
+        '<h4>📦 Items ordered</h4>' + rows +
+        '<div class="tot-row"><span>Subtotal</span><b>' + App.fmtKD(order.subtotal) + '</b></div>' +
+        '<div class="tot-row"><span>Delivery</span><b>' + App.fmtKD(order.deliveryFee) + '</b></div>' +
+        '<div class="tot-row big"><span>Total paid</span><span>' + App.fmtKD(order.total) + '</span></div>' +
+      '</div>' +
+      '<div class="ds-sec">' +
+        '<h4>👤 Your details</h4>' +
+        '<div class="summary-line"><span>Name</span><b>' + App.esc(c.name || '—') + '</b></div>' +
+        '<div class="summary-line"><span>Phone</span><b>' + App.esc(c.phone || '—') + '</b></div>' +
+        '<div class="summary-line"><span>Address</span><b>' + App.esc(c.address || '—') + '</b></div>' +
+        '<div class="summary-line"><span>Payment</span><b>' +
+          (order.paymentMethod === 'wamd' ? '📲 WAMD' : '💵 Cash on Delivery') + '</b></div>' +
+        '<div class="summary-line"><span>Screenshot</span><b>' +
+          (order.paymentScreenshot ? '<span class="ok-t">📸 uploaded ✓</span>' : '<span class="muted-t">not needed</span>') +
+        '</b></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var waTimer = null;
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      App.toast('Order details copied ✓', 'ok');
+    } catch (e) {
+      App.toast('Could not copy — select the text manually', 'err');
+    }
+    document.body.removeChild(ta);
+  }
+
   function showDone(id, total, order, cfg) {
     var done = el('doneView');
     var flow = el('orderFlow');
@@ -560,22 +656,45 @@
     el('doneId').textContent = '#' + String(id).slice(-8).toUpperCase();
     el('doneTotal').textContent = App.fmtKD(total);
 
+    var sum = el('doneSummary');
+    if (sum) sum.innerHTML = doneSummaryHTML(order);
+
     var waWrap = el('doneWa');
     var link = null;
     if (cfg.whatsappSubmitEnabled !== false) {
       link = App.waLink(cfg.whatsappNumber || cfg.ownerPhone, App.buildWaMessage(order, cfg));
     }
+
+    var msgText = link ? App.buildWaMessage(order, cfg) : '';
+    var copyBtn = el('doneCopy');
+    if (copyBtn) {
+      copyBtn.onclick = function () {
+        var txt = msgText || App.buildWaMessage(order, cfg);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function () {
+            App.toast('Order details copied ✓', 'ok');
+          }).catch(function () { fallbackCopy(txt); });
+        } else {
+          fallbackCopy(txt);
+        }
+      };
+    }
+
+    var shareWrap = el('doneShare');
+    if (shareWrap) {
+      if (order.paymentScreenshot && S.ss && S.ss.url) shareWrap.style.display = 'flex';
+      else shareWrap.style.display = 'none';
+    }
+
     if (link && waWrap) {
       waWrap.style.display = 'flex';
       var btn = el('doneWaBtn');
       btn.href = link;
       btn.onclick = function () {
         App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
+        cancelAutoWa();
       };
-      setTimeout(function () {
-        App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
-        window.location.assign(link);
-      }, 700);
+      startAutoWa(link, id);
     } else if (waWrap) {
       waWrap.style.display = 'none';
       var note = el('doneNote');
@@ -584,6 +703,61 @@
 
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
     App.toast('Order placed successfully ✓', 'ok');
+  }
+
+  // Auto-hand the order to WhatsApp, but never yank the confirmation away
+  // before the customer has had a chance to read it (and let them opt out).
+  function startAutoWa(link, id) {
+    cancelAutoWa();
+    var box = el('waCountdown');
+    var stay = el('waStay');
+    var left = 4;
+    function paint() {
+      if (box) box.innerHTML = 'Opening WhatsApp in <b>' + left + '</b>…';
+      if (stay) stay.hidden = false;
+    }
+    paint();
+    waTimer = setInterval(function () {
+      left--;
+      if (left <= 0) {
+        cancelAutoWa();
+        App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
+        location.href = link;
+        return;
+      }
+      paint();
+    }, 1000);
+    if (stay) stay.onclick = function () { cancelAutoWa(); App.toast('WhatsApp left open — send it any time from the button below', 'ok'); };
+  }
+
+  function cancelAutoWa() {
+    if (waTimer) { clearInterval(waTimer); waTimer = null; }
+    var box = el('waCountdown');
+    if (box) box.innerHTML = '';
+    var stay = el('waStay');
+    if (stay) stay.hidden = true;
+  }
+
+  // WhatsApp text links cannot carry a file — hand the screenshot to the
+  // phone's share sheet instead, which opens WhatsApp with the image attached.
+  function shareScreenshot() {
+    if (!S.ss || !S.ss.url) return;
+    if (!/^data:/.test(S.ss.url)) { window.open(S.ss.url, '_blank', 'noopener'); return; }
+    var b64 = S.ss.url.split(',')[1] || '';
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var mime = S.ss.url.indexOf('webp') > -1 ? 'image/webp' : 'image/jpeg';
+    var file = new File([bytes], 'payment-screenshot.' + (mime === 'image/webp' ? 'webp' : 'jpg'), { type: mime });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], text: 'Payment screenshot for my order' }).catch(function () {});
+    } else {
+      var a = document.createElement('a');
+      a.href = S.ss.url;
+      a.download = 'payment-screenshot.jpg';
+      a.click();
+      App.toast('Screenshot downloaded — attach it in the WhatsApp chat', 'ok');
+    }
   }
 
   function boot() {
@@ -629,6 +803,18 @@
 
     var btnSubmit = el('btnSubmit');
     if (btnSubmit) btnSubmit.addEventListener('click', doSubmit);
+
+    var shareBtn = el('doneShareBtn');
+    if (shareBtn) shareBtn.addEventListener('click', shareScreenshot);
+
+    var backHome = el('doneHome');
+    if (backHome) backHome.addEventListener('click', cancelAutoWa);
+
+    // WAMD account name / number live in the database — re-render the payment
+    // step whenever the admin changes them.
+    App.on('config', function () {
+      if (S.step === 3) renderPayment();
+    });
 
     restoreDraft();
     var qp = new URLSearchParams(location.search);

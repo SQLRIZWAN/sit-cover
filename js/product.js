@@ -61,7 +61,7 @@
       return;
     }
 
-    var p = (App.state.products || {})[pid];
+    var p = App.getProduct(pid);
     if (!p) {
       root.innerHTML = '<div class="empty" style="margin-top:10px"><div class="big">🔍</div>' +
         '<b>Product not found</b>It may have been removed. Browse all products from Home.' +
@@ -97,9 +97,9 @@
           '<div class="pd-price">' + App.fmtKD(p.price) + '</div>' +
           '<div class="pd-desc"><h3>Details</h3>' + App.esc(p.description || 'Contact the shop for more details about this product.') + '</div>' +
           '<div class="pd-actions">' +
-            '<button class="btn btn-pri" id="btnOrder"' + (out ? ' disabled' : '') + '>⚡ Buy Now</button>' +
-            '<button class="btn btn-ghost" id="btnAdd"' + (out ? ' disabled' : '') + '>🛒 Add to Cart</button>' +
-            '<a class="btn btn-ghost" href="index.html">🏠 Home</a>' +
+            '<a class="btn btn-ghost act-home" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.2 12 4l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg> Home</a>' +
+            '<button class="btn btn-pri act-buy" id="btnOrder"' + (out ? ' disabled' : '') + '>⚡ Buy Now</button>' +
+            '<button class="btn btn-ghost act-cart" id="btnAdd"' + (out ? ' disabled' : '') + '>🛒 Add to Cart</button>' +
           '</div>' +
           (out ? '<p style="margin-top:10px;font-size:13px;color:#dc2626;font-weight:700">This item is currently out of stock — ask our AI assistant for similar products.</p>' : '') +
         '</div>' +

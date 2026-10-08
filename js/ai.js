@@ -57,7 +57,7 @@
     var s = null;
     try { s = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (e) {}
     if (s && typeof s.x === 'number' && typeof s.y === 'number') return s;
-    return { x: window.innerWidth - 78, y: window.innerHeight - 88 };
+    return null;
   }
 
   function savePos() {
@@ -69,35 +69,79 @@
 
   function clampPos(x, y) {
     var w = 58, h = 58;
+    var vv = window.visualViewport;
+    var vw = (vv && vv.width) || window.innerWidth;
+    var vh = (vv && vv.height) || window.innerHeight;
     return {
-      x: Math.max(6, Math.min(window.innerWidth - w - 6, x)),
-      y: Math.max(6, Math.min(window.innerHeight - h - 6, y))
+      x: Math.max(6, Math.min(vw - w - 6, x)),
+      y: Math.max(6, Math.min(vh - h - 6, y))
     };
   }
 
+  function isSheet() { return window.innerWidth <= 700; }
+
+  function defaultAnchor() {
+    return { x: window.innerWidth - 68, y: window.innerHeight - 68 };
+  }
+
   function restorePos() {
-    var p = clampPos(pos().x, pos().y);
-    fab.style.left = p.x + 'px';
-    fab.style.top = p.y + 'px';
-    fab.style.right = 'auto';
-    fab.style.bottom = 'auto';
+    var saved = pos();
+    var d = defaultAnchor();
+    // Only adopt a stored position when the user actually dragged the button;
+    // otherwise keep it pinned to the safe default corner.
+    if (saved && Math.abs(saved.x - d.x) > 40) {
+      var p = clampPos(saved.x, saved.y);
+      fab.style.left = p.x + 'px';
+      fab.style.top = p.y + 'px';
+      fab.style.right = 'auto';
+      fab.style.bottom = 'auto';
+    } else {
+      fab.style.left = '';
+      fab.style.top = '';
+      fab.style.right = '';
+      fab.style.bottom = '';
+      try { localStorage.removeItem(POS_KEY); } catch (e) {}
+    }
+  }
+
+  function fabXY() {
+    var r = fab.getBoundingClientRect();
+    if (!r.width) {
+      var d = defaultAnchor();
+      return { x: d.x, y: d.y };
+    }
+    return { x: r.left, y: r.top };
   }
 
   function placePanel() {
-    var vw = window.innerWidth, vh = window.innerHeight;
+    if (!panel || panel.hidden) return;
+
+    // Mobile: always a bottom sheet pinned to the layout viewport. Anchoring to
+    // the bottom (never to a measured top offset) is what stops the chat box
+    // from jumping around when the on-screen keyboard opens.
+    if (isSheet()) {
+      panel.classList.add('is-sheet');
+      panel.style.left = '';
+      panel.style.top = '';
+      panel.style.right = '';
+      panel.style.bottom = '';
+      panel.style.width = '';
+      panel.style.height = '';
+      return;
+    }
+
+    panel.classList.remove('is-sheet');
+    var vv = window.visualViewport;
+    var vw = (vv && vv.width) || window.innerWidth;
+    var vh = (vv && vv.height) || window.innerHeight;
     var pw = Math.min(370, vw - 20);
     var ph = Math.min(540, vh - 40);
     panel.style.width = pw + 'px';
     panel.style.height = ph + 'px';
-    var fx = parseFloat(fab.style.left) || 0;
-    var fy = parseFloat(fab.style.top) || 0;
 
-    var px = fx + 29 - pw / 2;
-    px = Math.max(10, Math.min(vw - pw - 10, px));
-
-    var py;
-    if (fy < vh / 2) py = fy + 66;
-    else py = fy - ph - 8;
+    var f = fabXY();
+    var px = Math.max(10, Math.min(vw - pw - 10, f.x + 29 - pw / 2));
+    var py = f.y < vh / 2 ? f.y + 66 : f.y - ph - 8;
     py = Math.max(10, Math.min(vh - ph - 10, py));
 
     panel.style.left = px + 'px';
@@ -188,15 +232,33 @@
       attBox.hidden = true;
     });
 
-    window.addEventListener('resize', function () {
+    // Only react to real layout changes (orientation / breakpoint). Resizes
+    // caused by the on-screen keyboard used to shove the button and the chat
+    // panel around the screen.
+    var lastW = window.innerWidth;
+    var reflow = function () {
       if (!fab) return;
-      var p = clampPos(parseFloat(fab.style.left) || 0, parseFloat(fab.style.top) || 0);
-      fab.style.left = p.x + 'px';
-      fab.style.top = p.y + 'px';
-      fab.style.right = 'auto';
-      fab.style.bottom = 'auto';
+      var w = window.innerWidth;
+      var widthChanged = w !== lastW;
+      lastW = w;
+      var left = parseFloat(fab.style.left);
+      var top = parseFloat(fab.style.top);
+      if (isFinite(left) && isFinite(top)) {
+        var p = clampPos(left, top);
+        if (widthChanged || p.x !== left || p.y !== top) {
+          fab.style.left = p.x + 'px';
+          fab.style.top = p.y + 'px';
+          fab.style.right = 'auto';
+          fab.style.bottom = 'auto';
+        }
+      }
       if (open) placePanel();
-    });
+    };
+    window.addEventListener('resize', reflow);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function () { if (open) placePanel(); });
+      window.visualViewport.addEventListener('scroll', function () { if (open) placePanel(); });
+    }
 
     restorePos();
   }

@@ -153,6 +153,18 @@
     return arr;
   };
 
+  // Always returns a copy that carries its own id — reading straight from
+  // App.state.products loses the key and breaks cart / order bookkeeping.
+  App.getProduct = function (id) {
+    if (id == null || id === '') return null;
+    var src = (App.state.products || {})[id];
+    if (!src) return null;
+    var o = {};
+    for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) o[k] = src[k];
+    o.id = id;
+    return o;
+  };
+
   function fitImg(url, w) {
     if (!url || url.indexOf('/upload/') === -1) return url || '';
     return url.replace('/upload/', '/upload/w_' + w + ',q_auto,f_auto/');
@@ -175,6 +187,68 @@
     if (p && p.media && p.media.length) return p.media[0];
     if (p && p.thumb) return { type: 'image', url: p.thumb, thumb: p.thumb };
     return null;
+  };
+
+  // Icon support: emoji text, "prefix:name" (Iconify CDN) or a full https data/URL.
+  var ICON_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/i;
+
+  App.iconKind = function (icon) {
+    var v = String(icon == null ? '' : icon).trim();
+    if (!v) return 'none';
+    if (/^(https?:|data:image\/)/i.test(v)) return 'url';
+    if (ICON_RE.test(v)) return 'iconify';
+    return 'emoji';
+  };
+
+  App.iconSrc = function (icon) {
+    var v = String(icon == null ? '' : icon).trim();
+    if (!v) return '';
+    if (App.iconKind(v) === 'iconify') {
+      var parts = v.split(':');
+      return 'https://api.iconify.design/' + parts[0] + '/' + parts[1] + '.svg?color=%23111827';
+    }
+    return v;
+  };
+
+  // Renders an icon so every surface (tabs, drawer, cards, admin nav) looks the same.
+  App.iconHTML = function (icon, cls) {
+    var kind = App.iconKind(icon);
+    var c = cls ? ' ' + App.esc(cls) : '';
+    if (kind === 'none') return '<span class="ico ico-emoji' + c + '" aria-hidden="true">🛍️</span>';
+    if (kind === 'emoji') return '<span class="ico ico-emoji' + c + '" aria-hidden="true">' + App.esc(icon) + '</span>';
+    return '<img class="ico ico-img' + c + '" src="' + App.esc(App.iconSrc(icon)) + '" alt="" aria-hidden="true" loading="lazy" decoding="async">';
+  };
+
+  // ---- Branding (logo / banner / loading screen) managed from the admin panel ----
+  var BRAND_DEFAULTS = {
+    logo: 'assets/shop-logo.webp',
+    banner: 'assets/shop-banner.webp',
+    loading: 'assets/shop-logo.webp',
+    favicon: 'assets/shop-logo.webp'
+  };
+
+  App.branding = function () {
+    var b = (App.state.config && App.state.config.branding) || {};
+    var out = {};
+    for (var k in BRAND_DEFAULTS) out[k] = (typeof b[k] === 'string' && b[k]) ? b[k] : BRAND_DEFAULTS[k];
+    return out;
+  };
+
+  App.applyBranding = function () {
+    var b = App.branding();
+
+    $$('[data-brand="logo"]').forEach(function (img) {
+      if (img.getAttribute('src') !== b.logo) img.setAttribute('src', b.logo);
+    });
+    $$('[data-brand="loading"]').forEach(function (img) {
+      if (img.getAttribute('src') !== b.loading) img.setAttribute('src', b.loading);
+    });
+
+    var hero = $('.shop-hero img');
+    if (hero && hero.getAttribute('src') !== b.banner) hero.setAttribute('src', b.banner);
+
+    var icon = $('link[rel="icon"]');
+    if (icon && icon.getAttribute('href') !== b.favicon) icon.setAttribute('href', b.favicon);
   };
 
   App.haversine = function (lat1, lng1, lat2, lng2) {
@@ -253,6 +327,24 @@
     clear: function () { App.Cart.save([]); },
     count: function () {
       return App.Cart.list().reduce(function (s, x) { return s + (x.qty || 1); }, 0);
+    },
+    // Re-attach product ids to baskets saved by older builds (they stored no id,
+    // which made the quantity stepper and selection checkboxes dead).
+    repair: function () {
+      var arr = App.Cart.list();
+      if (!arr.length) return;
+      var byName = {};
+      App.prodList().forEach(function (p) { if (p.name && !byName[p.name]) byName[p.name] = p; });
+      var changed = false;
+      arr.forEach(function (it) {
+        var bad = it.id === undefined || it.id === null || it.id === '' || it.id === 'undefined';
+        if (!bad) return;
+        var p = byName[it.name];
+        it.id = p ? p.id : ('x' + String(it.name || '').replace(/[^a-z0-9]+/gi, '_').toLowerCase().slice(0, 40));
+        if (!(it.qty > 0)) it.qty = 1;
+        changed = true;
+      });
+      if (changed) App.Cart.save(arr);
     }
   };
 
@@ -409,31 +501,49 @@
     });
   };
 
+  // Formatted WhatsApp order card — reads like a receipt, not a wall of text.
   App.buildWaMessage = function (o, cfg) {
-    var lines = [];
-    lines.push('*New Order* — ' + cfg.shopName);
-    lines.push('Order: #' + String(o.id || '').slice(-8).toUpperCase());
-    lines.push('');
-    lines.push('*Items:*');
-    (o.items || []).forEach(function (it, i) {
-      lines.push((i + 1) + '. ' + it.name + ' x' + it.qty + ' — ' + App.fmtKD(Number(it.price) * Number(it.qty)));
+    var L = [];
+    var rule = '━━━━━━━━━━━━━━━━';
+    var items = o.items || [];
+    var pay = o.paymentMethod === 'wamd' ? '📲 WAMD (prepaid)' : '💵 Cash on Delivery';
+    var dist = o.distanceKm != null ? Number(o.distanceKm).toFixed(1) + ' km' : 'flat rate';
+
+    L.push('*NEW ORDER*');
+    L.push('*' + cfg.shopName + '*');
+    L.push('Order ID: `' + String(o.id || '').slice(-8).toUpperCase() + '`');
+    L.push(rule);
+
+    L.push('*1. ITEMS*');
+    items.forEach(function (it, i) {
+      var lineTotal = Number(it.price) * Number(it.qty);
+      L.push((i + 1) + '. ' + it.name);
+      L.push('   ' + Number(it.qty || 1) + ' x ' + App.fmtKD(it.price) + ' = *' + App.fmtKD(lineTotal) + '*');
     });
-    lines.push('');
-    lines.push('Subtotal: ' + App.fmtKD(o.subtotal));
-    lines.push('Delivery (' + (o.distanceKm != null ? Number(o.distanceKm).toFixed(1) + ' km' : 'flat') + '): ' + App.fmtKD(o.deliveryFee));
-    lines.push('*Total: ' + App.fmtKD(o.total) + '*');
-    lines.push('Payment: ' + (o.paymentMethod === 'wamd' ? 'WAMD (prepaid)' : 'Cash on Delivery'));
-    lines.push('');
-    lines.push('*Customer:* ' + o.customer.name);
-    lines.push('Phone: ' + o.customer.phone);
-    lines.push('Location: ' + (o.customer.address || 'not specified'));
-    if (o.customer.lat != null) {
-      lines.push('Map: https://maps.google.com/?q=' + o.customer.lat + ',' + o.customer.lng);
+
+    L.push(rule);
+    L.push('*2. BILL*');
+    L.push('Subtotal: ' + App.fmtKD(o.subtotal));
+    L.push('Delivery (' + dist + '): ' + App.fmtKD(o.deliveryFee));
+    L.push('*TOTAL: ' + App.fmtKD(o.total) + '*');
+    L.push('Payment: ' + pay);
+
+    L.push(rule);
+    L.push('*3. CUSTOMER*');
+    L.push('Name: *' + (o.customer && o.customer.name ? o.customer.name : '—') + '*');
+    L.push('Phone: ' + (o.customer && o.customer.phone ? o.customer.phone : '—'));
+    L.push('Address: ' + (o.customer && o.customer.address ? o.customer.address : 'not specified'));
+    if (o.customer && o.customer.lat != null) {
+      L.push('📍 https://maps.google.com/?q=' + o.customer.lat + ',' + o.customer.lng);
     }
+
     if (o.paymentScreenshot) {
-      lines.push('Payment screenshot uploaded — see it in the admin panel.');
+      L.push(rule);
+      L.push('📸 Payment screenshot saved with this order — open it in the admin panel.');
     }
-    return lines.join('\n');
+    L.push('');
+    L.push('_Sent automatically from the shop website._');
+    return L.join('\n');
   };
 
   App.waLink = function (num, text) {
@@ -447,7 +557,7 @@
       '<div class="offline-bar" id="offlineBar">Live connection is slow or offline — showing saved info. Check your internet.</div>' +
       '<header class="topbar"><div class="wrap top-in">' +
         '<button class="ic-btn" id="menuBtn" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>' +
-        '<a class="brand" href="index.html"><img src="assets/shop-logo.webp" alt="logo"><span id="tbName"></span></a>' +
+        '<a class="brand" href="index.html"><img data-brand="logo" src="assets/shop-logo.webp" alt="logo"><span id="tbName"></span></a>' +
         '<div class="top-r">' +
           '<div id="google_translate_element"></div>' +
           '<div class="tr-wrap">' +
@@ -468,7 +578,7 @@
       '<div class="drawer-mask" id="drawerMask"></div>' +
       '<aside class="drawer" id="drawer">' +
         '<div class="dr-head">' +
-          '<img src="assets/shop-logo.webp" alt="">' +
+          '<img data-brand="logo" src="assets/shop-logo.webp" alt="">' +
           '<div><b id="drName"></b><small id="drSub"></small></div>' +
           '<button class="dr-close" id="drClose" aria-label="Close">&#10005;</button>' +
         '</div>' +
@@ -493,6 +603,7 @@
       '<footer class="site-foot">' +
         '<div class="wrap foot-grid">' +
           '<div class="f-col">' +
+            '<img class="f-logo" data-brand="logo" src="assets/shop-logo.webp" alt="">' +
             '<b class="f-t" id="ftName"></b>' +
             '<p id="ftAddr" dir="auto"></p>' +
           '</div>' +
@@ -593,6 +704,7 @@
     });
 
     renderDrawerCats();
+    App.applyBranding();
   }
 
   function renderDrawerCats() {
@@ -602,7 +714,7 @@
     if (!cats.length) { box.innerHTML = ''; return; }
     box.innerHTML = cats.map(function (c) {
       return '<a class="d-cat" href="index.html?cat=' + encodeURIComponent(c.id) + '">' +
-        App.esc(c.icon || '📁') + ' ' + App.esc(c.name) + '</a>';
+        App.iconHTML(c.icon) + '<span>' + App.esc(c.name) + '</span></a>';
     }).join('');
   }
 
@@ -863,9 +975,12 @@
     initDrawer();
     initTranslate();
     initPreloader();
+    App.Cart.repair();
     App.updateCartBadge();
     loadFirebase();
 
+    App.on('products', function () { App.Cart.repair(); App.updateCartBadge(); });
+    App.on('config', function () { App.applyBranding(); });
     App.on('fbReady', function () {});
   };
 

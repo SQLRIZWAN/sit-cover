@@ -2,12 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Order — Fahad Asi Manea Al-Zaferi Co</title>
   <meta name="description" content="Review your basket, set your location and pay by cash on delivery or WAMD.">
   <meta name="theme-color" content="#0f172a">
   <link rel="icon" href="assets/shop-logo.webp" type="image/webp">
-  <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" media="print" onload="this.media=&#39;all&#39;">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"></noscript>
+<link rel="stylesheet" href="css/style.css">
   <script>
     function googleTranslateElementInit() {
       try {
@@ -21,7 +26,7 @@
 <body>
   <div id="preloader">
     <div class="pre-card">
-      <img class="pre-logo" src="assets/shop-logo.webp" alt="logo" style="animation:none;border-radius:50%">
+      <img class="pre-logo" data-brand="loading" src="assets/shop-logo.webp" alt="logo" style="animation:none;border-radius:50%">
       <div class="pre-name">Fahad Asi Manea Al-Zaferi Co</div>
       <div class="pre-sub">Quality Products • Fast Delivery</div>
       <div class="pre-bar"><i></i></div>
@@ -87,6 +92,13 @@
             <div><label for="fNotes">Delivery notes</label><input id="fNotes" type="text" placeholder="Floor, landmark, etc."></div>
           </div>
           <div class="tip">More address details help us deliver faster.</div>
+
+          <div class="loc-box">
+            <label class="loc-lab">📍 Delivery point <span class="opt">(optional — auto-calculates distance &amp; delivery fee)</span></label>
+            <button type="button" class="btn btn-ghost" id="locBtn">📍 Use my location</button>
+            <div class="loc-info" id="locInfo"><b>No location selected yet.</b> Tap “Use my location” so we can calculate the distance and the exact delivery fee automatically.</div>
+          </div>
+
           <div class="order-nav">
             <button class="btn btn-ghost" id="s2Back">← Back</button>
             <button class="btn btn-pri" id="s2Next">Continue →</button>
@@ -146,6 +158,7 @@
           <div class="order-nav">
             <button class="btn btn-ghost" id="s3Back">← Back</button>
             <button class="btn btn-pri" id="btnSubmit">✅ Submit Order</button>
+            <span id="submitLive" role="status" aria-live="polite"></span>
           </div>
         </div>
       </div>
@@ -157,12 +170,27 @@
         <h2>Order placed successfully!</h2>
         <div class="oid" id="doneId">#00000000</div>
         <p>Total: <b id="doneTotal">0.000 KD</b></p>
+
+        <div id="doneSummary"></div>
+
         <p id="doneNote">Send your order to the shop on WhatsApp so they can start preparing it right away.</p>
+
         <div class="done-actions" id="doneWa">
           <a class="btn btn-wa" id="doneWaBtn" href="#" target="_blank" rel="noopener">💬 Send order on WhatsApp</a>
         </div>
+        <div class="wa-count" id="waCountdown"></div>
+        <div style="text-align:center"><button type="button" id="waStay" hidden>Stay on this page</button></div>
+
+        <div class="done-actions" id="doneShare" style="display:none">
+          <button type="button" class="btn btn-ghost" id="doneShareBtn">📸 Send payment screenshot</button>
+        </div>
+
         <div class="done-actions">
-          <a class="btn btn-pri" href="index.html">🏠 Continue shopping</a>
+          <button type="button" class="btn btn-ghost" id="doneCopy">📋 Copy order details</button>
+        </div>
+
+        <div class="done-actions">
+          <a class="btn btn-pri" id="doneHome" href="index.html">🏠 Continue shopping</a>
         </div>
       </div>
     </div>
