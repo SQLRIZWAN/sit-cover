@@ -372,9 +372,8 @@
     var text = (input.value || '').trim();
     var file = pendingFile;
     if (!text && !file) return;
-    if (!App.loaded.products && App.fbTried && !App.connected) {
-      App.toast('Live catalog not connected yet — wait a moment', 'err');
-      return;
+    if (!App.loaded.products) {
+      App.toast('Catalog is still loading — buy cards may be limited');
     }
 
     input.value = '';

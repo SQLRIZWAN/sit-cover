@@ -62,7 +62,7 @@
     s.src = src;
     s.async = true;
     if (cb) {
-      s.onload = cb;
+      s.onload = function () { cb(null); };
       s.onerror = function () { cb(new Error('load failed: ' + src)); };
     }
     document.head.appendChild(s);
@@ -444,8 +444,12 @@
     return '' +
       '<div class="banner"><div class="wrap banner-in">' +
         '<div class="b-left">' +
-          '<div class="b-name" id="bnName"></div>' +
-          '<div class="b-name ar" id="bnNameAr" dir="rtl"></div>' +
+          '<img class="b-logo" src="assets/logo.svg" alt="">' +
+          '<div class="b-txt">' +
+            '<div class="b-name" id="bnName"></div>' +
+            '<div class="b-name ar" id="bnNameAr" dir="rtl"></div>' +
+            '<div class="b-chips"><i>🛋️ Sit Cover</i><i>🔧 Drill Machine</i><i>📺 TV Remote</i></div>' +
+          '</div>' +
         '</div>' +
         '<div class="b-right">' +
           '<a class="b-item link" id="bnPhone" href="#"><svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.2.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .7-.2 1l-2.3 2.2z"/></svg><span></span></a>' +
@@ -458,7 +462,18 @@
         '<a class="brand" href="index.html"><img src="assets/logo.svg" alt="logo"><span id="tbName"></span></a>' +
         '<div class="top-r">' +
           '<div id="google_translate_element"></div>' +
-          '<button class="ic-btn" id="trBtn" aria-label="Translate" title="Translate"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9S14.5 18.3 12 21c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg></button>' +
+          '<div class="tr-wrap">' +
+            '<button class="ic-btn" id="trBtn" aria-label="Translate" title="Translate"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9S14.5 18.3 12 21c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg><span class="tr-cur" id="trCur">EN</span></button>' +
+            '<div class="tr-menu" id="trMenu" hidden>' +
+              '<div class="tr-t">Choose language</div>' +
+              '<button data-lang="en"><span>🇬🇧 English</span><b>EN</b></button>' +
+              '<button data-lang="ar"><span>🇸🇦 العربية</span><b>AR</b></button>' +
+              '<button data-lang="ur"><span>🇵🇰 اردو</span><b>UR</b></button>' +
+              '<button data-lang="hi"><span>🇮🇳 हिन्दी</span><b>HI</b></button>' +
+              '<button data-lang="fa"><span>🇮🇷 فارسی</span><b>FA</b></button>' +
+              '<button data-lang="tr"><span>🇹🇷 Türkçe</span><b>TR</b></button>' +
+            '</div>' +
+          '</div>' +
           '<a class="ic-btn cart-btn" href="order.html" aria-label="Cart"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.6 12.2c.1.5.6.8 1 .8h8.9c.5 0 .9-.3 1-.8L21 8H7"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg><span class="cart-n hide" id="cartN">0</span></a>' +
         '</div>' +
       '</div></header>' +
@@ -615,21 +630,64 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
   }
 
-  function openTranslate() {
-    document.body.classList.add('translate-open');
-    var combo = document.querySelector('.goog-te-combo');
-    if (combo) {
-      combo.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      setTimeout(function () { try { combo.focus(); } catch (e) {} }, 250);
-    } else {
-      App.toast('Translate is still loading… try again');
+  var TR_LANGS = ['en', 'ar', 'ur', 'hi', 'fa', 'tr'];
+
+  function trDomains() {
+    var host = location.hostname;
+    var doms = [''];
+    if (host.indexOf('.') > 0) doms.push('.' + host.split('.').slice(-2).join('.'));
+    return doms;
+  }
+
+  function readTrLang() {
+    var m = document.cookie.match(/(?:^|;\s*)googtrans=([^;]*)/);
+    if (!m) return 'en';
+    var seg = decodeURIComponent(m[1]).split('/');
+    return seg.length > 2 && seg[2] ? seg[2] : 'en';
+  }
+
+  function writeTrCookie(val, clear) {
+    var ext = clear
+      ? '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      : '; expires=' + new Date(Date.now() + 365 * 864e5).toUTCString();
+    trDomains().forEach(function (d) {
+      document.cookie = 'googtrans=' + encodeURIComponent(val) + ext + '; path=/' + (d ? '; domain=' + d : '');
+    });
+  }
+
+  function setTrLang(lang) {
+    if (TR_LANGS.indexOf(lang) < 0 || lang === 'en') writeTrCookie('', true);
+    else writeTrCookie('/en/' + lang, false);
+    location.reload();
+  }
+
+  function syncTrUI() {
+    var lang = readTrLang();
+    var cur = $('#trCur');
+    if (cur) cur.textContent = lang.toUpperCase();
+    var menu = $('#trMenu');
+    if (menu) {
+      Array.prototype.forEach.call(menu.querySelectorAll('button[data-lang]'), function (b) {
+        b.classList.toggle('on', b.getAttribute('data-lang') === lang);
+      });
     }
+  }
+
+  function openTrMenu() {
+    var menu = $('#trMenu');
+    if (!menu) return;
+    menu.hidden = false;
+    syncTrUI();
+  }
+
+  function closeTrMenu() {
+    var menu = $('#trMenu');
+    if (menu) menu.hidden = true;
   }
 
   function initTranslate() {
     var host = $('#google_translate_element');
-    if (!host) return;
-    if (typeof window.googleTranslateElementInit !== 'function') {
+    if (host && typeof window.googleTranslateElementInit !== 'function') {
       window.googleTranslateElementInit = function () {
         try {
           if (window.google && google.translate) {
@@ -639,12 +697,27 @@
       };
     }
     App.loadScript('https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit');
+
+    syncTrUI();
     var tb = $('#trBtn');
-    if (tb) tb.addEventListener('click', openTranslate);
-    var dt = $('#drTranslate');
-    if (dt) dt.addEventListener('click', function (e) { e.preventDefault(); openTranslate(); });
-    var ft = $('#ftTranslate');
-    if (ft) ft.addEventListener('click', function (e) { e.preventDefault(); openTranslate(); });
+    if (tb) tb.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var m = $('#trMenu');
+      if (!m) return;
+      if (m.hidden) openTrMenu(); else closeTrMenu();
+    });
+    var menu = $('#trMenu');
+    if (menu) menu.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('button[data-lang]');
+      if (b) setTrLang(b.getAttribute('data-lang'));
+    });
+    document.addEventListener('click', function (e) {
+      if (!(e.target.closest && e.target.closest('.tr-wrap'))) closeTrMenu();
+    });
+    ['#drTranslate', '#ftTranslate'].forEach(function (sel) {
+      var elx = $(sel);
+      if (elx) elx.addEventListener('click', function (e) { e.preventDefault(); openTrMenu(); });
+    });
   }
 
   App.hidePreloader = function () {
@@ -663,13 +736,35 @@
     setTimeout(App.hidePreloader, 2600);
   }
 
-  function showOffline(msg) {
+  function showOffline(msg, retry) {
     var bar = $('#offlineBar');
     if (!bar) return;
-    bar.textContent = msg || 'Live connection is slow or offline — showing saved info.';
+    bar.innerHTML = '<span>' + (msg || 'Live connection is slow or offline — showing saved info. Check your internet.') + '</span>' +
+      (retry ? ' <button type="button" class="off-retry" id="offRetry">Retry</button>' : '');
     bar.classList.add('on');
+    if (retry) {
+      var b = $('#offRetry');
+      if (b) b.addEventListener('click', function () { location.reload(); });
+    }
   }
   App.showOffline = showOffline;
+
+  var FB_BASES = [
+    'https://www.gstatic.com/firebasejs/10.12.5',
+    'https://cdn.jsdelivr.net/npm/firebase@10.12.5',
+    'https://unpkg.com/firebase@10.12.5',
+    'https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.5'
+  ];
+
+  function loadFbFile(file, cb) {
+    var i = 0;
+    (function next() {
+      if (i >= FB_BASES.length) { cb(new Error('all CDNs failed: ' + file)); return; }
+      App.loadScript(FB_BASES[i++] + '/' + file, function (err) {
+        if (err) next(); else cb(null);
+      });
+    })();
+  }
 
   function connectDB() {
     var DB = firebase.database();
@@ -683,15 +778,15 @@
       }
     });
     setTimeout(function () {
-      if (!App.connected) showOffline();
-    }, 6000);
+      if (!App.connected) showOffline('Live connection is slow — data may not have loaded.', true);
+    }, 7000);
 
     DB.ref('config').on('value', function (s) {
       App.state.config = s.val() || null;
       App.loaded.config = true;
       applyConfigUI();
       fire('config');
-    }, function (e) { console.warn('config', e); showOffline('Cannot read live data: ' + (e.message || '')); });
+    }, function (e) { console.warn('config', e); showOffline('Cannot read live data: ' + (e.message || ''), true); });
 
     DB.ref('categories').on('value', function (s) {
       App.state.categories = s.val() || {};
@@ -749,17 +844,17 @@
       return;
     }
 
-    App.loadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js', function (err1) {
-      if (err1) { showOffline('Cannot reach Firebase (blocked?). Live data disabled.'); return; }
-      App.loadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js', function (err2) {
-        if (err2) { showOffline('Cannot reach Firebase database. Live data disabled.'); return; }
+    loadFbFile('firebase-app-compat.js', function (e1) {
+      if (e1) { showOffline('Cannot load Firebase — check your internet or ad-blocker.', true); return; }
+      loadFbFile('firebase-database-compat.js', function (e2) {
+        if (e2) { showOffline('Cannot load Firebase database module.', true); return; }
         try {
           firebase.initializeApp(cfg);
           connectDB();
           fire('fbReady');
         } catch (e) {
           console.error(e);
-          showOffline('Firebase init error: ' + e.message);
+          showOffline('Firebase init error: ' + e.message, true);
         }
       });
     });
@@ -767,7 +862,11 @@
 
   App.boot = function () {
     var h = $('#siteHeader');
-    if (h) h.innerHTML = headerHTML();
+    if (h) {
+      h.innerHTML = headerHTML();
+      var tb = h.querySelector('.topbar');
+      if (tb && h.parentNode) h.parentNode.insertBefore(tb, h.nextSibling);
+    }
     var f = $('#siteFooter');
     if (f) f.innerHTML = footerHTML();
 

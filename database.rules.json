@@ -19,7 +19,7 @@
         ".write": "auth != null || (!data.exists() && newData.child('status').val() == 'new' && newData.child('total').val() != null)"
       }
     },
-    "stats": { ".read": "auth != null", ".write": true },
+    "stats": { ".read": "auth != null", ".write": true, "visitors": { ".read": true } },
     "aiScans": { ".read": "auth != null", ".write": true }
   }
 }

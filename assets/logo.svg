@@ -12,7 +12,27 @@
   </defs>
   <circle cx="60" cy="60" r="58" fill="url(#bg)"/>
   <circle cx="60" cy="60" r="51" fill="none" stroke="url(#gold)" stroke-width="3"/>
-  <text x="60" y="70" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="800" fill="url(#gold)" text-anchor="middle">FA</text>
-  <path d="M40 84 H80" stroke="url(#gold)" stroke-width="4" stroke-linecap="round"/>
-  <path d="M48 92 H72" stroke="url(#gold)" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <g fill="url(#gold)">
+    <rect x="19" y="36" width="13" height="31" rx="6"/>
+    <rect x="19" y="61" width="27" height="11" rx="5.5"/>
+    <rect x="39" y="53" width="7" height="19" rx="3.5"/>
+  </g>
+  <g fill="url(#gold)">
+    <rect x="50" y="43" width="24" height="13" rx="6"/>
+    <rect x="74" y="46" width="7" height="7" rx="3"/>
+    <rect x="81" y="48" width="6" height="3" rx="1.5"/>
+    <path d="M54 57 h11 l-2 14 h-7 z"/>
+    <rect x="51" y="70" width="17" height="8" rx="3"/>
+  </g>
+  <g>
+    <rect x="89" y="35" width="16" height="41" rx="7" fill="none" stroke="url(#gold)" stroke-width="3"/>
+    <rect x="93" y="39.5" width="8" height="6.5" rx="2" fill="url(#gold)"/>
+    <circle cx="94.5" cy="54" r="2.1" fill="url(#gold)"/>
+    <circle cx="100.5" cy="54" r="2.1" fill="url(#gold)"/>
+    <circle cx="94.5" cy="61.5" r="2.1" fill="url(#gold)"/>
+    <circle cx="100.5" cy="61.5" r="2.1" fill="url(#gold)"/>
+    <circle cx="97.5" cy="70" r="3.4" fill="url(#gold)"/>
+  </g>
+  <rect x="42" y="86" width="36" height="4.5" rx="2.25" fill="url(#gold)"/>
+  <rect x="48" y="94.5" width="24" height="3.5" rx="1.75" fill="url(#gold)" opacity=".6"/>
 </svg>

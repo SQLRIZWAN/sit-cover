@@ -111,6 +111,17 @@
   App.on('categories', function () { renderTabs(); });
   App.on('products', function () { renderTabs(); renderGrid(); });
 
+  setTimeout(function () {
+    if (App.loaded.products) return;
+    var g = document.getElementById('productGrid');
+    if (!g) return;
+    g.innerHTML = '<div class="empty"><div class="big">📡</div><b>Live data is slow right now</b>' +
+      'Could not reach the shop database. Check your internet, then retry.' +
+      '<button class="btn-retry" type="button">Retry</button></div>';
+    var b = g.querySelector('.btn-retry');
+    if (b) b.addEventListener('click', function () { location.reload(); });
+  }, 9000);
+
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a.p-card');
     if (a) a.style.transform = 'scale(.98)';
