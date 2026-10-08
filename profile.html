@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>My Account — Fahad Asi Manea Al-Zaferi Co</title>
+  <meta name="description" content="Sign in with Google, add your photo, phone number and details so checkout is faster.">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/shop-logo.webp" type="image/webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" media="print" onload="this.media=&#39;all&#39;">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    function googleTranslateElementInit() {
+      try {
+        if (window.google && google.translate) {
+          new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element');
+        }
+      } catch (e) {}
+    }
+  </script>
+</head>
+<body>
+  <div id="preloader">
+    <div class="pre-card">
+      <img class="pre-logo" data-brand="loading" src="assets/shop-logo.webp" alt="logo" style="animation:none;border-radius:50%">
+      <div class="pre-name">Fahad Asi Manea Al-Zaferi Co</div>
+      <div class="pre-sub">My Account</div>
+      <div class="pre-bar"><i></i></div>
+    </div>
+  </div>
+
+  <div id="siteHeader"></div>
+
+  <main>
+    <div class="wrap sect static-page">
+
+      <!-- Signed out ------------------------------------------------------ -->
+      <div class="card pf-card" id="profOut">
+        <div class="pf-hero">
+          <span class="pf-hero-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.7"/><path d="M4.9 20.2a7.3 7.3 0 0 1 14.2 0"/></svg>
+          </span>
+          <h1>Your account</h1>
+          <p class="lead">Signing in is <b>optional</b>. You can browse and order without an account — sign in only if you want your details saved.</p>
+        </div>
+
+        <button type="button" class="btn btn-pri g-btn" id="gSignIn">
+          <svg class="g-ico" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.5 2.5 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.4-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.4z"/><path fill="#FBBC05" d="M10.4 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6.1a24 24 0 0 0 0 21.6l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.5 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <ul class="pf-perks">
+          <li><span aria-hidden="true">⚡</span> Faster checkout — your name and number are remembered.</li>
+          <li><span aria-hidden="true">🖼️</span> Add your own profile photo (DP).</li>
+          <li><span aria-hidden="true">🧾</span> Your details stay on your device and in your private shop record.</li>
+        </ul>
+
+        <p class="pf-note">We only ask Google for your name, email address and profile picture. No password is created or stored by this shop.</p>
+        <p class="pf-note"><a class="pf-link" href="index.html">← Back to the shop</a></p>
+      </div>
+
+      <!-- Signed in ------------------------------------------------------- -->
+      <div class="card pf-card" id="profIn" hidden>
+        <div class="pf-head">
+          <button type="button" class="pf-av-btn" id="pfPicBtn" aria-label="Change profile photo">
+            <span class="pf-av" id="pfAv"></span>
+            <span class="pf-cam" aria-hidden="true">📷</span>
+          </button>
+          <input type="file" id="pfFile" accept="image/*" hidden>
+          <div class="pf-id">
+            <b id="pfNameOut">—</b>
+            <span id="pfEmailOut">—</span>
+            <span class="pf-badge">Signed in with Google</span>
+          </div>
+        </div>
+
+        <div class="pf-actions-top">
+          <button type="button" class="btn btn-ghost btn-sm" id="pfPicBtn2">Change photo</button>
+          <button type="button" class="btn btn-ghost btn-sm hide" id="pfPicReset">Use Google photo</button>
+        </div>
+
+        <div class="field">
+          <label for="pfName">Full name</label>
+          <input id="pfName" type="text" maxlength="80" autocomplete="name" placeholder="Your name">
+        </div>
+
+        <div class="field">
+          <label for="pfPhone">Phone number</label>
+          <input id="pfPhone" type="tel" maxlength="30" autocomplete="tel" placeholder="e.g. 9XXXXXXXX">
+          <div class="tip">Used to contact you about your orders.</div>
+        </div>
+
+        <div class="field">
+          <label for="pfInfo">Extra information <span class="opt">(optional)</span></label>
+          <textarea id="pfInfo" maxlength="500" rows="3" placeholder="Address, delivery notes, preferred language…"></textarea>
+        </div>
+
+        <div class="pf-actions">
+          <button type="button" class="btn btn-pri" id="pfSave">Save changes</button>
+          <button type="button" class="btn btn-ghost" id="pfOut">Sign out</button>
+        </div>
+
+        <p class="pf-note"><a class="pf-link" href="index.html">← Back to the shop</a></p>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="siteFooter"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/ai.js"></script>
+</body>
+</html>

@@ -572,6 +572,7 @@
               '<button data-lang="tr"><span>🇹🇷 Türkçe</span><b>TR</b></button>' +
             '</div>' +
           '</div>' +
+          '<a class="ic-btn acct-btn" id="acctBtn" href="profile.html" aria-label="My account"><span class="acct-av" id="acctAv"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.7"/><path d="M4.9 20.2a7.3 7.3 0 0 1 14.2 0"/></svg></span></a>' +
           '<a class="ic-btn cart-btn" href="order.html" aria-label="Cart"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.6 12.2c.1.5.6.8 1 .8h8.9c.5 0 .9-.3 1-.8L21 8H7"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg><span class="cart-n hide" id="cartN">0</span></a>' +
         '</div>' +
       '</div></header>' +
@@ -583,6 +584,7 @@
           '<button class="dr-close" id="drClose" aria-label="Close">&#10005;</button>' +
         '</div>' +
         '<nav>' +
+          '<a href="profile.html" id="drAcct"><span class="d-ico" id="drAcctI">&#128100;</span> <span id="drAcctT">Sign in</span></a>' +
           '<a href="index.html">&#127968; Home</a>' +
           '<a href="about.html">&#8505;&#65039; About Us</a>' +
           '<a href="privacy.html">&#128274; Privacy Policy</a>' +
@@ -716,6 +718,47 @@
       return '<a class="d-cat" href="index.html?cat=' + encodeURIComponent(c.id) + '">' +
         App.iconHTML(c.icon) + '<span>' + App.esc(c.name) + '</span></a>';
     }).join('');
+  }
+
+  // Google profile pictures can disappear or be blocked — fall back to a
+  // letter tile instead of a broken-image icon.
+  var imgFallbackBound = false;
+  App.bindImgFallback = function () {
+    if (imgFallbackBound) return;
+    imgFallbackBound = true;
+    document.addEventListener('error', function (e) {
+      var img = e.target;
+      if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-fb')) return;
+      if (!img.parentNode) return;
+      var span = document.createElement('span');
+      span.className = (img.className || '') + ' img-fb';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = img.getAttribute('data-fb') || '?';
+      img.parentNode.replaceChild(span, img);
+    }, true);
+  };
+
+  function paintAuth(u) {
+    var av = $('#acctAv');
+    if (av) {
+      av.innerHTML = (u && u.photo)
+        ? '<img class="acct-img" src="' + App.esc(u.photo) + '" alt="" data-fb="' + App.esc((u.name || u.email || '?').charAt(0).toUpperCase()) + '">'
+        : '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.7"/><path d="M4.9 20.2a7.3 7.3 0 0 1 14.2 0"/></svg>';
+    }
+    var btn = $('#acctBtn');
+    if (btn) {
+      btn.setAttribute('aria-label', u ? ('My account — ' + (u.name || u.email || '')) : 'Sign in to your account');
+    }
+    var di = $('#drAcctI'), dt = $('#drAcctT');
+    if (di) {
+      di.innerHTML = (u && u.photo)
+        ? '<img class="d-img" src="' + App.esc(u.photo) + '" alt="" data-fb="' + App.esc((u.name || u.email || '?').charAt(0).toUpperCase()) + '">'
+        : '&#128100;';
+    }
+    if (dt) {
+      dt.textContent = u ? (u.name || u.email || 'My profile') : 'Sign in';
+      dt.title = u ? (u.email || '') : 'Sign in with Google (optional)';
+    }
   }
 
   function initDrawer() {
@@ -975,8 +1018,11 @@
     initDrawer();
     initTranslate();
     initPreloader();
+    App.bindImgFallback();
     App.Cart.repair();
     App.updateCartBadge();
+    paintAuth(App.state.auth);
+    App.on('auth', paintAuth);
     loadFirebase();
 
     App.on('products', function () { App.Cart.repair(); App.updateCartBadge(); });
