@@ -2,6 +2,7 @@
   'use strict';
 
   var currentCat = 'home';
+  var query = '';
 
   function paramCat() {
     try {
@@ -83,7 +84,19 @@
     }
 
     var all = App.prodList();
-    var list = currentCat === 'home' ? all : all.filter(function (p) { return p.categoryId === currentCat; });
+    var list;
+    if (currentCat === 'home') {
+      var seen = {};
+      list = all.filter(function (p) {
+        var key = p.categoryId || '__uncategorized';
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+    } else {
+      list = all.filter(function (p) { return p.categoryId === currentCat; });
+    }
+    if (query) list = list.filter(function (p) { return String(p.name || '').toLowerCase().indexOf(query) > -1 || String(p.description || '').toLowerCase().indexOf(query) > -1; });
 
     if (!list.length) {
       if (!all.length) {
@@ -107,6 +120,9 @@
   }
 
   currentCat = paramCat();
+
+  var search = document.getElementById('productSearch');
+  if (search) search.addEventListener('input', function () { query = search.value.trim().toLowerCase(); renderGrid(); });
 
   App.on('categories', function () { renderTabs(); });
   App.on('products', function () { renderTabs(); renderGrid(); });

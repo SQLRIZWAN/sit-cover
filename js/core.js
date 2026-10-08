@@ -82,6 +82,7 @@
     shopLat: 29.2844,
     shopLng: 47.9656,
     whatsappSubmitEnabled: true,
+    visitorCountingEnabled: false,
     email: '',
     instagram: '',
     currency: 'KD',
@@ -805,6 +806,7 @@
   }
 
   function trackVisitor(DB) {
+    if (App.cfg().visitorCountingEnabled !== true) return;
     var vid;
     try {
       vid = localStorage.getItem('sc_vid');

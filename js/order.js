@@ -41,7 +41,7 @@
       e.classList.toggle('on', Number(e.getAttribute('data-line')) < n);
     });
     if (n === 1) renderCart();
-    if (n === 2) { renderDetails(); initMaps(); }
+    if (n === 2) { renderDetails(); }
     if (n === 3) renderPayment();
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }
@@ -292,11 +292,7 @@
     S.customer.phone = p;
     S.customer.address = (el('fAddr').value || '').trim();
 
-    if (S.customer.lat == null) {
-      var ok = confirm('Location point not selected — delivery charge will be the flat Kuwait-wide rate of ' + App.fmtKD(App.deliveryFee(null)) + '.\n\nPress OK to continue anyway, or Cancel to go back and set your location.');
-      if (!ok) return false;
-      S.distance = null;
-    }
+    S.distance = null;
     saveBuyer();
     return true;
   }

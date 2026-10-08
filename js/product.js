@@ -97,7 +97,8 @@
           '<div class="pd-price">' + App.fmtKD(p.price) + '</div>' +
           '<div class="pd-desc"><h3>Details</h3>' + App.esc(p.description || 'Contact the shop for more details about this product.') + '</div>' +
           '<div class="pd-actions">' +
-            '<button class="btn btn-pri" id="btnOrder"' + (out ? ' disabled' : '') + '>🛒 Order Now</button>' +
+            '<button class="btn btn-pri" id="btnOrder"' + (out ? ' disabled' : '') + '>⚡ Buy Now</button>' +
+            '<button class="btn btn-ghost" id="btnAdd"' + (out ? ' disabled' : '') + '>🛒 Add to Cart</button>' +
             '<button class="btn btn-dark" id="btnNew"' + (out ? ' disabled' : '') + '>⚡ New Order</button>' +
             '<a class="btn btn-ghost" href="index.html">🏠 Home</a>' +
           '</div>' +
@@ -117,6 +118,12 @@
       App.Cart.add(p, 1);
       App.toast('Added to your basket ✓', 'ok');
       setTimeout(function () { location.href = 'order.html'; }, 350);
+    });
+
+    var ba = document.getElementById('btnAdd');
+    if (ba) ba.addEventListener('click', function () {
+      App.Cart.add(p, 1);
+      App.toast('Added to your basket ✓', 'ok');
     });
 
     var bn = document.getElementById('btnNew');
