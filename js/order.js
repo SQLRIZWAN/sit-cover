@@ -26,6 +26,33 @@
     return selectedItems().reduce(function (s, x) { return s + (Number(x.price) || 0) * (x.qty || 1); }, 0);
   }
 
+  function saveDraft() {
+    try { localStorage.setItem('sc_order_draft', JSON.stringify({ sel: S.sel, customer: S.customer, distance: S.distance })); } catch (e) {}
+  }
+
+  function restoreDraft() {
+    try {
+      var d = JSON.parse(localStorage.getItem('sc_order_draft') || 'null');
+      if (!d) return;
+      S.sel = d.sel || {};
+      S.selInit = true;
+      S.customer = d.customer || S.customer;
+      S.distance = d.distance == null ? null : d.distance;
+      if (el('fName')) el('fName').value = S.customer.name || '';
+      if (el('fPhone')) el('fPhone').value = S.customer.phone || '';
+      var parts = String(S.customer.address || '').split(', ');
+      if (el('fArea')) el('fArea').value = parts.shift() || '';
+      parts.forEach(function (p) {
+        if (/^Block /.test(p) && el('fBlock')) el('fBlock').value = p.replace(/^Block /, '');
+        else if (/^Street /.test(p) && el('fStreet')) el('fStreet').value = p.replace(/^Street /, '');
+        else if (/^Notes: /.test(p) && el('fNotes')) el('fNotes').value = p.replace(/^Notes: /, '');
+        else if (el('fBuilding') && !el('fBuilding').value) el('fBuilding').value = p;
+      });
+      var shot = localStorage.getItem('sc_wamd_shot');
+      if (shot) { S.ss = JSON.parse(shot); localStorage.removeItem('sc_wamd_shot'); }
+    } catch (e) {}
+  }
+
   function goStep(n) {
     S.step = n;
     Array.prototype.forEach.call(document.querySelectorAll('.ostep'), function (e) {
@@ -69,13 +96,13 @@
     list.innerHTML = items.map(function (x) {
       var on = !!S.sel[x.id];
       return '<div class="cart-row' + (on ? '' : ' off') + '" data-id="' + App.esc(x.id) + '">' +
-        '<button class="ck' + (on ? ' on' : '') + '" data-act="tick" aria-label="select"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></button>' +
+        '<button type="button" class="ck' + (on ? ' on' : '') + '" data-act="tick" aria-label="select"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></button>' +
         '<div class="cart-img">' + (x.image ? '<img src="' + App.esc(x.image) + '" alt="" loading="lazy">' : '<div style="display:flex;height:100%;align-items:center;justify-content:center">🛍️</div>') + '</div>' +
         '<div class="cart-nm"><b>' + App.esc(x.name) + '</b><span>' + App.fmtKD(x.price) + ' each</span>' +
-          '<div class="qty"><button data-act="minus">−</button><span>' + (x.qty || 1) + '</span><button data-act="plus">+</button></div>' +
+          '<div class="qty"><button type="button" data-act="minus">−</button><span>' + (x.qty || 1) + '</span><button type="button" data-act="plus">+</button></div>' +
         '</div>' +
         '<div class="cart-rt"><b>' + App.fmtKD((Number(x.price) || 0) * (x.qty || 1)) + '</b>' +
-          '<button class="cart-del" data-act="del">Remove</button></div>' +
+          '<button type="button" class="cart-del" data-act="del">Remove</button></div>' +
       '</div>';
     }).join('');
 
@@ -86,6 +113,7 @@
   }
 
   function onCartClick(e) {
+    e.preventDefault();
     var btn = e.target.closest('[data-act]');
     if (!btn) return;
     var row = btn.closest('.cart-row');
@@ -127,6 +155,16 @@
   function renderDetails() {
     loadBuyer();
     updateLocInfo();
+  }
+
+  function addressFromForm() {
+    return [
+      el('fArea') && el('fArea').value.trim(),
+      el('fBlock') && el('fBlock').value.trim() ? 'Block ' + el('fBlock').value.trim() : '',
+      el('fStreet') && el('fStreet').value.trim() ? 'Street ' + el('fStreet').value.trim() : '',
+      el('fBuilding') && el('fBuilding').value.trim(),
+      el('fNotes') && el('fNotes').value.trim() ? 'Notes: ' + el('fNotes').value.trim() : ''
+    ].filter(Boolean).join(', ');
   }
 
   function updateLocInfo() {
@@ -289,7 +327,8 @@
     if (p.replace(/\D/g, '').length < 8) { App.toast('Please enter a valid phone number', 'err'); el('fPhone').focus(); return false; }
     S.customer.name = n;
     S.customer.phone = p;
-    S.customer.address = (el('fAddr').value || '').trim();
+    if (!(el('fArea').value || '').trim()) { App.toast('Please enter your area', 'err'); el('fArea').focus(); return false; }
+    S.customer.address = addressFromForm();
 
     S.distance = null;
     saveBuyer();
@@ -321,6 +360,10 @@
     el('wamdAmount').textContent = App.fmtKD(total);
 
     setPay(S.payment, true);
+    if (S.ss && S.ss.url) {
+      el('ssPrev').classList.add('on');
+      el('ssPrevImg').src = S.ss.url;
+    }
   }
 
   function setPay(method, silent) {
@@ -528,7 +571,14 @@
     if (s2b) s2b.addEventListener('click', function () { goStep(1); });
 
     Array.prototype.forEach.call(document.querySelectorAll('.pay-opt'), function (o) {
-      o.addEventListener('click', function () { setPay(o.getAttribute('data-pay')); });
+      o.addEventListener('click', function () {
+        if (o.getAttribute('data-pay') === 'wamd') {
+          saveDraft();
+          location.href = 'wamd.html';
+          return;
+        }
+        setPay(o.getAttribute('data-pay'));
+      });
     });
 
     var ssBox = el('ssBox'), ssFile = el('ssFile');
@@ -545,7 +595,14 @@
     var btnSubmit = el('btnSubmit');
     if (btnSubmit) btnSubmit.addEventListener('click', doSubmit);
 
-    goStep(1);
+    restoreDraft();
+    var qp = new URLSearchParams(location.search);
+    if (qp.get('payment') === 'wamd' || qp.get('paid') === '1') {
+      S.payment = 'wamd';
+      goStep(3);
+    } else {
+      goStep(1);
+    }
   }
 
   if (document.readyState === 'loading') {

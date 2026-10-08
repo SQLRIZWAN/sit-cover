@@ -99,7 +99,6 @@
           '<div class="pd-actions">' +
             '<button class="btn btn-pri" id="btnOrder"' + (out ? ' disabled' : '') + '>⚡ Buy Now</button>' +
             '<button class="btn btn-ghost" id="btnAdd"' + (out ? ' disabled' : '') + '>🛒 Add to Cart</button>' +
-            '<button class="btn btn-dark" id="btnNew"' + (out ? ' disabled' : '') + '>⚡ New Order</button>' +
             '<a class="btn btn-ghost" href="index.html">🏠 Home</a>' +
           '</div>' +
           (out ? '<p style="margin-top:10px;font-size:13px;color:#dc2626;font-weight:700">This item is currently out of stock — ask our AI assistant for similar products.</p>' : '') +
@@ -126,12 +125,6 @@
       App.toast('Added to your basket ✓', 'ok');
     });
 
-    var bn = document.getElementById('btnNew');
-    if (bn) bn.addEventListener('click', function () {
-      App.Cart.reset(p, 1);
-      App.toast('Starting a new order ✓', 'ok');
-      setTimeout(function () { location.href = 'order.html'; }, 350);
-    });
   }
 
   App.on('products', render);

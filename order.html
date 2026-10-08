@@ -75,10 +75,18 @@
             </div>
           </div>
           <div class="field">
-            <label for="fAddr">Address / area</label>
-            <input id="fAddr" type="text" autocomplete="street-address" placeholder="Area, street, block…">
-            <div class="tip">Please enter your area, block, street and house/building details for delivery.</div>
+            <label for="fArea">Area <span class="req">*</span></label>
+            <input id="fArea" type="text" autocomplete="address-level2" placeholder="e.g. Jleeb Al-Shuyoukh">
           </div>
+          <div class="field two">
+            <div><label for="fBlock">Block</label><input id="fBlock" type="text" placeholder="Block number"></div>
+            <div><label for="fStreet">Street</label><input id="fStreet" type="text" autocomplete="street-address" placeholder="Street name/number"></div>
+          </div>
+          <div class="field two">
+            <div><label for="fBuilding">Building / House</label><input id="fBuilding" type="text" placeholder="Building, house or flat"></div>
+            <div><label for="fNotes">Delivery notes</label><input id="fNotes" type="text" placeholder="Floor, landmark, etc."></div>
+          </div>
+          <div class="tip">More address details help us deliver faster.</div>
           <div class="order-nav">
             <button class="btn btn-ghost" id="s2Back">← Back</button>
             <button class="btn btn-pri" id="s2Next">Continue →</button>
