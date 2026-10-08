@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>About Us — Fahad Asi Manea Al-Zaferi Co</title>
+  <meta name="description" content="About our local Kuwait shop — what we sell, where we are and how to reach us.">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    function googleTranslateElementInit() {
+      try {
+        if (window.google && google.translate) {
+          new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element');
+        }
+      } catch (e) {}
+    }
+  </script>
+</head>
+<body>
+  <div id="preloader">
+    <div class="pre-card">
+      <img class="pre-logo" src="assets/logo.svg" alt="logo" style="animation:none;border-radius:50%">
+      <div class="pre-name">Fahad Asi Manea Al-Zaferi Co</div>
+      <div class="pre-sub">Quality Products • Fast Delivery</div>
+      <div class="pre-bar"><i></i></div>
+    </div>
+  </div>
+
+  <div id="siteHeader"></div>
+
+  <main>
+    <div class="wrap sect">
+      <div class="static-page">
+        <div class="card">
+          <h1>About Us</h1>
+          <p class="lead">Your trusted local shop in Kuwait.</p>
+          <p><b>Fahad Asi Manea Al-Zaferi Co</b> is a multi-purpose local shop serving customers with a wide range of everyday products — TV remotes, seat covers, machines and much more. We keep adding new stock regularly, and everything you see on this website is updated live from our shop system.</p>
+
+          <h2>Why shop with us?</h2>
+          <ul>
+            <li>Wide range of products in one shop</li>
+            <li>Real stock status — what you see is what we have</li>
+            <li>Fast home delivery across Kuwait (distance-based charges)</li>
+            <li>Cash on Delivery or WAMD prepaid payment</li>
+            <li>AI assistant that finds any product for you — even from a photo</li>
+          </ul>
+
+          <h2>Visit or contact us</h2>
+          <p>📍 <b>Location:</b> <span id="abAddr">Jleeb Al-Shuyoukh, Kuwait</span></p>
+          <p>📞 <b>Shop:</b> <a id="abPhone" href="tel:24312328" style="color:#d97706;font-weight:800">24312328</a></p>
+          <p>👤 <b>Owner:</b> <a id="abOwner" href="tel:+96599529389" style="color:#d97706;font-weight:800">+965 99529389</a></p>
+          <p>💬 <b>WhatsApp:</b> <a id="abWa" href="https://wa.me/96599529389" target="_blank" rel="noopener" style="color:#16a34a;font-weight:800">Chat with us</a></p>
+
+          <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+            <a class="btn btn-pri" href="index.html">🛍️ Start shopping</a>
+            <a class="btn btn-ghost" href="privacy.html">Privacy Policy</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="siteFooter"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/core.js"></script>
+  <script>
+    App.on('config', function () {
+      var c = App.cfg();
+      var a = document.getElementById('abAddr');
+      if (a) a.textContent = c.address + (c.addressAr ? ' • ' + c.addressAr : '');
+      var p = document.getElementById('abPhone');
+      if (p) { p.href = 'tel:' + String(c.phone).replace(/\s/g, ''); p.textContent = c.phone; }
+      var o = document.getElementById('abOwner');
+      if (o) { o.href = 'tel:' + String(c.ownerPhone).replace(/[^\d+]/g, ''); o.textContent = c.ownerPhone; }
+      var w = document.getElementById('abWa');
+      if (w) w.href = 'https://wa.me/' + String(c.ownerPhone || c.whatsappNumber).replace(/[^0-9]/g, '');
+    });
+  </script>
+  <script src="js/ai.js"></script>
+</body>
+</html>

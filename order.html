@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Order — Fahad Asi Manea Al-Zaferi Co</title>
+  <meta name="description" content="Review your basket, set your location and pay by cash on delivery or WAMD.">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    function googleTranslateElementInit() {
+      try {
+        if (window.google && google.translate) {
+          new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element');
+        }
+      } catch (e) {}
+    }
+  </script>
+</head>
+<body>
+  <div id="preloader">
+    <div class="pre-card">
+      <img class="pre-logo" src="assets/logo.svg" alt="logo" style="animation:none;border-radius:50%">
+      <div class="pre-name">Fahad Asi Manea Al-Zaferi Co</div>
+      <div class="pre-sub">Quality Products • Fast Delivery</div>
+      <div class="pre-bar"><i></i></div>
+    </div>
+  </div>
+
+  <div id="siteHeader"></div>
+
+  <main>
+    <div class="wrap sect" id="orderFlow">
+      <div class="stepper">
+        <div class="stp on" data-step="1"><div class="dot">1</div><small>Basket</small></div>
+        <div class="stp-line" data-line="1"></div>
+        <div class="stp" data-step="2"><div class="dot">2</div><small>Details</small></div>
+        <div class="stp-line" data-line="2"></div>
+        <div class="stp" data-step="3"><div class="dot">3</div><small>Payment</small></div>
+      </div>
+
+      <div class="ostep on" data-step="1">
+        <div class="empty" id="cartEmpty" style="display:none">
+          <div class="big">🛒</div>
+          <b>Your basket is empty</b>
+          Pick products from the shop and they will appear here.
+          <div style="margin-top:16px"><a class="btn btn-pri" href="index.html">Browse Products</a></div>
+        </div>
+        <div class="panel" id="cartPanel">
+          <h3><span class="n">1</span> Your basket (tokri)</h3>
+          <div id="cartList"></div>
+          <div style="margin-top:14px">
+            <div class="tot-row"><span id="cSelCount">0 selected</span></div>
+            <div class="tot-row"><span>Subtotal (selected)</span><b id="cSubtotal">0.000 KD</b></div>
+          </div>
+          <div class="order-nav">
+            <button class="btn btn-ghost" id="s1Back">← Keep shopping</button>
+            <button class="btn btn-pri" id="s1Next">Continue →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ostep" data-step="2">
+        <div class="panel">
+          <h3><span class="n">2</span> Your details &amp; location</h3>
+          <div class="field two">
+            <div>
+              <label for="fName">Full name <span class="req">*</span></label>
+              <input id="fName" type="text" autocomplete="name" placeholder="e.g. Ahmed Ali">
+            </div>
+            <div>
+              <label for="fPhone">Phone number <span class="req">*</span></label>
+              <input id="fPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="e.g. 9xxxxxxx">
+            </div>
+          </div>
+          <div class="field">
+            <label for="fAddr">Address / area (start typing or pick on map)</label>
+            <input id="fAddr" type="text" autocomplete="street-address" placeholder="Area, street, block…">
+            <div class="tip">Accurate location = fast delivery. Tap the map to drop the pin, or use GPS.</div>
+          </div>
+          <div id="mapBox"></div>
+          <div class="map-tools">
+            <button class="btn btn-dark btn-sm" id="locBtn">📍 Use my location</button>
+            <a class="btn btn-ghost btn-sm" href="https://www.google.com/maps" target="_blank" rel="noopener">🌐 Open Google Maps</a>
+          </div>
+          <div class="loc-info" id="locInfo"></div>
+          <div class="order-nav">
+            <button class="btn btn-ghost" id="s2Back">← Back</button>
+            <button class="btn btn-pri" id="s2Next">Continue →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ostep" data-step="3">
+        <div class="panel">
+          <h3><span class="n">3</span> Payment</h3>
+          <div class="pay-opts">
+            <div class="pay-opt on" data-pay="cod">
+              <span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
+              <div class="ic">💵</div>
+              <b>Cash on Delivery</b>
+              <small>Pay at your door when the order arrives</small>
+            </div>
+            <div class="pay-opt" data-pay="wamd">
+              <span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
+              <div class="ic">📲</div>
+              <b>WAMD (prepaid)</b>
+              <small>Send the amount in the WAMD app first</small>
+            </div>
+          </div>
+
+          <div class="wamd-box" id="wamdBox" style="display:none">
+            <div style="font-size:13px;font-weight:800;color:#92400e">AMOUNT TO PAY</div>
+            <div class="amt" id="wamdAmount">0.000 KD</div>
+            <div style="font-size:13px;margin-top:8px;color:#92400e">WAMD number</div>
+            <div class="num" id="wamdNumber">—</div>
+            <div class="wamd-actions">
+              <a class="btn btn-dark btn-sm" id="wamdOpen" href="#" target="_blank" rel="noopener">📲 Open WAMD</a>
+              <span style="font-size:12.5px;color:#92400e;align-self:center">Amount is shown above — the app opens automatically too.</span>
+            </div>
+            <div style="margin-top:14px">
+              <label style="display:block;font-size:13px;font-weight:800;color:#92400e;margin-bottom:6px">Payment screenshot (recommended)</label>
+              <div class="ss-box" id="ssBox">📸 Tap here to upload your payment screenshot<br><small>Shows the shop the payment is done</small></div>
+              <input type="file" id="ssFile" accept="image/*" hidden>
+              <div class="ss-prog" id="ssProg"><i id="ssBar"></i></div>
+              <div class="ss-prev" id="ssPrev"><img id="ssPrevImg" alt="screenshot"><button class="x" id="ssRemove" type="button">✕</button></div>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;padding-top:14px;border-top:2px dashed #e5e7eb">
+            <div style="font-size:13px;font-weight:800;color:#6b7280;margin-bottom:8px">ORDER SUMMARY (auto-filled)</div>
+            <div id="pItems"></div>
+            <div class="tot-row"><span>Subtotal</span><b id="pSub">0.000 KD</b></div>
+            <div class="tot-row"><span>Delivery (<span id="pDist">—</span>)</span><b id="pFee">0.000 KD</b></div>
+            <div class="tot-row big"><span>Total</span><span id="pTotal">0.000 KD</span></div>
+          </div>
+
+          <div style="margin-top:14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:13px">
+            <div class="summary-line"><span>Name</span><b id="rName">—</b></div>
+            <div class="summary-line"><span>Phone</span><b id="rPhone">—</b></div>
+            <div class="summary-line"><span>Location</span><b id="rAddr">—</b></div>
+          </div>
+
+          <div class="order-nav">
+            <button class="btn btn-ghost" id="s3Back">← Back</button>
+            <button class="btn btn-pri" id="btnSubmit">✅ Submit Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap sect" id="doneView" style="display:none">
+      <div class="panel done-card">
+        <div class="done-ic"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>
+        <h2>Order placed successfully!</h2>
+        <div class="oid" id="doneId">#00000000</div>
+        <p>Total: <b id="doneTotal">0.000 KD</b></p>
+        <p id="doneNote">Send your order to the shop on WhatsApp so they can start preparing it right away.</p>
+        <div class="done-actions" id="doneWa">
+          <a class="btn btn-wa" id="doneWaBtn" href="#" target="_blank" rel="noopener">💬 Send order on WhatsApp</a>
+        </div>
+        <div class="done-actions">
+          <a class="btn btn-pri" href="index.html">🏠 Continue shopping</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="siteFooter"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/order.js"></script>
+  <script src="js/ai.js"></script>
+</body>
+</html>
