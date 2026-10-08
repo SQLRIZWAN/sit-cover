@@ -76,6 +76,7 @@
     ownerPhone: '+965 99529389',
     whatsappNumber: '96599529389',
     wamdNumber: '96599529389',
+    wamdName: '',
     wamdLink: '',
     address: 'Jleeb Al-Shuyoukh, Kuwait',
     addressAr: 'جليب الشيوخ، الكويت',
@@ -475,6 +476,7 @@
           '<a href="index.html">&#127968; Home</a>' +
           '<a href="about.html">&#8505;&#65039; About Us</a>' +
           '<a href="privacy.html">&#128274; Privacy Policy</a>' +
+          '<a href="report.html">&#128203; Report an issue</a>' +
           '<a href="#" id="drTranslate">&#127760; Translate</a>' +
           '<hr><div class="d-label">Categories</div><div id="drCats"></div>' +
           '<hr>' +

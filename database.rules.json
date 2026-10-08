@@ -21,5 +21,11 @@
     },
     "stats": { ".read": "auth != null", ".write": true, "visitors": { ".read": true } },
     "aiScans": { ".read": "auth != null", ".write": true }
+    ,"reports": {
+      "$reportId": {
+        ".write": "!data.exists() && newData.child('message').isString() && newData.child('message').val().length <= 2000",
+        ".read": "auth != null"
+      }
+    }
   }
 }

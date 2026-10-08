@@ -9,7 +9,6 @@
     distance: null,
     payment: 'cod',
     ss: null,
-    wamdAutoDone: false,
     buyerLoaded: false
   };
 
@@ -317,17 +316,9 @@
     el('rAddr').textContent = S.customer.address || (S.customer.lat != null ? 'GPS: ' + S.customer.lat.toFixed(5) + ', ' + S.customer.lng.toFixed(5) : 'Not set');
 
     var cfg = App.cfg();
+    el('wamdName').textContent = cfg.wamdName || cfg.shopName || 'Shop account';
     el('wamdNumber').textContent = cfg.wamdNumber || cfg.ownerPhone || '—';
     el('wamdAmount').textContent = App.fmtKD(total);
-    var wOpen = el('wamdOpen');
-    if (wOpen) {
-      if (cfg.wamdLink) {
-        wOpen.href = cfg.wamdLink;
-        wOpen.style.display = '';
-      } else {
-        wOpen.style.display = 'none';
-      }
-    }
 
     setPay(S.payment, true);
   }
@@ -340,17 +331,8 @@
     var w = el('wamdBox');
     if (w) w.style.display = method === 'wamd' ? 'block' : 'none';
 
-    if (method === 'wamd' && !S.wamdAutoDone) {
-      S.wamdAutoDone = true;
-      var cfg = App.cfg();
-      if (cfg.wamdLink) {
-        setTimeout(function () {
-          try { window.open(cfg.wamdLink, '_blank', 'noopener'); } catch (e) {}
-        }, 500);
-        if (!silent) App.toast('Opening WAMD payment app…', 'ok');
-      } else if (!silent) {
-        App.toast('Pay to the WAMD number shown below, then upload the screenshot');
-      }
+    if (method === 'wamd' && !silent) {
+      App.toast('Pay to the WAMD details shown below, then attach the screenshot');
     }
   }
 
@@ -412,7 +394,7 @@
     if (!sel.length) { App.toast('No products selected', 'err'); goStep(1); return; }
     if (!S.customer.name || !S.customer.phone) { App.toast('Missing details — go back a step', 'err'); goStep(2); return; }
 
-    setBtnLoading(btn, true, 'Saving order…');
+    setBtnLoading(btn, true, 'Submitting order…');
 
     var cfg = App.cfg();
     var sub = subtotal();
@@ -509,18 +491,11 @@
       var btn = el('doneWaBtn');
       btn.href = link;
       btn.onclick = function () {
-        try {
-          var w = window.open(link, '_blank', 'noopener');
-          if (w) {
-            App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
-          }
-        } catch (e) {}
+        App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
       };
       setTimeout(function () {
-        try {
-          var w = window.open(link, '_blank', 'noopener');
-          if (w) App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
-        } catch (e) {}
+        App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
+        window.location.assign(link);
       }, 700);
     } else if (waWrap) {
       waWrap.style.display = 'none';
