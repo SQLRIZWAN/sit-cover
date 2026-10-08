@@ -326,7 +326,7 @@ body { top: 0 !important; position: static !important; }
   background: #fff;
   border-bottom: 1px solid var(--line);
   position: sticky;
-  top: 58px;
+  top: 0;
   z-index: 450;
   box-shadow: 0 12px 26px -22px rgba(15, 23, 42, .55);
 }
@@ -362,11 +362,13 @@ main { flex: 1 0 auto; width: 100%; }
 .shop-hero img { width:100%; height:auto; object-fit:contain; border-radius:0; box-shadow:none; }
 .shop-search { display:flex; align-items:center; gap:8px; margin:14px auto; padding:0 14px; background:#fff; border:1px solid var(--line); border-radius:999px; box-shadow:var(--sh); }
 .shop-search span { font-size:26px; line-height:1; color:var(--gold-d); }
-.shop-search span { order:2; }
-.shop-search input { order:1; width:100%; border:0; outline:0; padding:12px 4px; background:transparent; font:inherit; }
-.home-page .topbar { position:absolute; top:0; left:0; right:0; background:transparent; border-bottom:0; box-shadow:none; z-index:510; }
-.home-page .top-in { justify-content:flex-end; }
+.shop-search span { order:1; }
+.shop-search input { order:2; flex:1; width:auto; border:0; outline:0; padding:12px 4px; background:transparent; font:inherit; }
+.home-page .topbar { position:absolute; top:0; left:0; right:0; background:transparent !important; backdrop-filter:none; -webkit-backdrop-filter:none; border-bottom:0; box-shadow:none; z-index:510; }
+.home-page .top-in { justify-content:flex-end; gap:6px; }
 .home-page .brand { display:none; }
+.home-page #menuBtn { order:3; }
+.home-page .top-r { order:2; margin-left:0; }
 .home-page .topbar .ic-btn { color:#fff; filter:drop-shadow(0 2px 4px rgba(0,0,0,.7)); }
 .home-page .topbar .ic-btn:hover { background:rgba(15,23,42,.28); }
 .sect-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 10px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -734,8 +736,8 @@ main { flex: 1 0 auto; width: 100%; }
   color: var(--navy);
   box-shadow: 0 14px 34px -10px rgba(217, 119, 6, .75);
   z-index: 900;
-  left: auto !important;
-  top: auto !important;
+  left: auto;
+  top: auto;
   right: 18px;
   bottom: 18px;
   display: flex;
@@ -747,6 +749,7 @@ main { flex: 1 0 auto; width: 100%; }
   transition: transform .15s;
 }
 .ai-fab:active { transform: scale(1.06); }
+.ai-fab.dragging { cursor: grabbing; transform: scale(1.04); }
 .ai-fab svg { width: 26px; height: 26px; fill: var(--navy); pointer-events: none; }
 .ai-spark { font-size: 29px; line-height: 1; font-weight: 800; color: var(--navy); pointer-events: none; }
 .ai-fab .ai-dot {
@@ -768,8 +771,8 @@ main { flex: 1 0 auto; width: 100%; }
   border-radius: 18px;
   box-shadow: 0 30px 70px -20px rgba(15, 23, 42, .55);
   z-index: 901;
-  left: auto !important;
-  top: auto !important;
+  left: auto;
+  top: auto;
   right: 18px;
   bottom: 82px;
   display: flex;

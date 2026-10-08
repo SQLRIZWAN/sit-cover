@@ -9,6 +9,7 @@
   var busy = false;
   var greeted = false;
   var messages = [];
+  var dragStart = null;
 
   var fab, panel, msgsBox, input, attachBtn, fileInput, attBox, attImg;
 
@@ -78,6 +79,8 @@
     var p = clampPos(pos().x, pos().y);
     fab.style.left = p.x + 'px';
     fab.style.top = p.y + 'px';
+    fab.style.right = 'auto';
+    fab.style.bottom = 'auto';
   }
 
   function placePanel() {
@@ -99,12 +102,51 @@
 
     panel.style.left = px + 'px';
     panel.style.top = py + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  function dragBegin(e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    var r = fab.getBoundingClientRect();
+    dragging = true;
+    moved = false;
+    dragStart = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+    fab.classList.add('dragging');
+    if (fab.setPointerCapture && e.pointerId !== undefined) fab.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  function dragMove(e) {
+    if (!dragging || !dragStart) return;
+    var dx = e.clientX - dragStart.x;
+    var dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+    var p = clampPos(dragStart.left + dx, dragStart.top + dy);
+    fab.style.left = p.x + 'px';
+    fab.style.top = p.y + 'px';
+    fab.style.right = 'auto';
+    fab.style.bottom = 'auto';
+    if (open) placePanel();
+    e.preventDefault();
+  }
+
+  function dragEnd(e) {
+    if (!dragging) return;
+    dragging = false;
+    dragStart = null;
+    fab.classList.remove('dragging');
+    savePos();
+    if (fab.releasePointerCapture && e.pointerId !== undefined) {
+      try { fab.releasePointerCapture(e.pointerId); } catch (ignore) {}
+    }
   }
 
   function setOpen(v) {
     open = v;
     panel.hidden = !v;
     if (v) {
+      placePanel();
       if (!greeted) {
         greeted = true;
         push('bot', 'Hello! 👋 Ask me about any product and I will help you find it.', true);
@@ -114,7 +156,16 @@
   }
 
   function bind() {
-    fab.addEventListener('click', function () { setOpen(!open); });
+    fab.addEventListener('pointerdown', dragBegin);
+    fab.addEventListener('pointermove', dragMove);
+    fab.addEventListener('pointerup', dragEnd);
+    fab.addEventListener('pointercancel', dragEnd);
+    fab.addEventListener('click', function () {
+      if (moved) { moved = false; return; }
+      setOpen(!open);
+    });
+    window.addEventListener('pointermove', dragMove, { passive: false });
+    window.addEventListener('pointerup', dragEnd);
 
     el('aiClose').addEventListener('click', function () { setOpen(false); });
     el('aiMin').addEventListener('click', function () { setOpen(false); });
@@ -142,8 +193,12 @@
       var p = clampPos(parseFloat(fab.style.left) || 0, parseFloat(fab.style.top) || 0);
       fab.style.left = p.x + 'px';
       fab.style.top = p.y + 'px';
+      fab.style.right = 'auto';
+      fab.style.bottom = 'auto';
       if (open) placePanel();
     });
+
+    restorePos();
   }
 
   function esc(s) { return App.esc(s); }
