@@ -110,24 +110,30 @@
     el('cSelCount').textContent = sel.length + ' of ' + items.length + ' selected';
     el('cSubtotal').textContent = App.fmtKD(subtotal());
     el('s1Next').disabled = sel.length === 0;
+
+    Array.prototype.forEach.call(list.querySelectorAll('[data-act]'), function (button) {
+      button.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCartAction(button);
+      });
+    });
   }
 
-  function onCartClick(e) {
-    e.preventDefault();
-    var btn = e.target.closest('[data-act]');
-    if (!btn) return;
-    var row = btn.closest('.cart-row');
+  function handleCartAction(btn) {
+    var row = btn.parentNode;
+    while (row && !row.classList.contains('cart-row')) row = row.parentNode;
     if (!row) return;
     var id = row.getAttribute('data-id');
     var act = btn.getAttribute('data-act');
     var items = App.Cart.list();
     var item = null;
-    items.forEach(function (x) { if (x.id === id) item = x; });
+    items.forEach(function (x) { if (String(x.id) === String(id)) item = x; });
     if (!item) return;
 
     if (act === 'tick') S.sel[id] = !S.sel[id];
-    if (act === 'plus') App.Cart.setQty(id, (item.qty || 1) + 1);
-    if (act === 'minus') App.Cart.setQty(id, (item.qty || 1) - 1);
+    if (act === 'plus') App.Cart.setQty(id, Number(item.qty || 1) + 1);
+    if (act === 'minus') App.Cart.setQty(id, Number(item.qty || 1) - 1);
     if (act === 'del') {
       App.Cart.remove(id);
       delete S.sel[id];
@@ -422,6 +428,24 @@
     }
   }
 
+  function startSubmitProgress(btn) {
+    var started = Date.now();
+    function tick() {
+      var seconds = Math.floor((Date.now() - started) / 1000);
+      var progress = Math.min(92, 12 + seconds * 7);
+      btn.classList.add('is-loading');
+      btn.style.setProperty('--submit-progress', progress + '%');
+      btn.textContent = 'Submitting order… ' + seconds + 's';
+    }
+    tick();
+    var timer = setInterval(tick, 500);
+    return function () {
+      clearInterval(timer);
+      btn.classList.remove('is-loading');
+      btn.style.removeProperty('--submit-progress');
+    };
+  }
+
   function customerKey(phone) {
     var k = String(phone).replace(/\D/g, '');
     return k || ('p' + Date.now().toString(36));
@@ -433,11 +457,16 @@
       App.toast('Still connecting to the shop — please wait a second and try again', 'err');
       return;
     }
+    if (App.connected === false) {
+      App.toast('Shop connection is offline. Check internet and tap Submit again.', 'err');
+      return;
+    }
     var sel = selectedItems();
     if (!sel.length) { App.toast('No products selected', 'err'); goStep(1); return; }
     if (!S.customer.name || !S.customer.phone) { App.toast('Missing details — go back a step', 'err'); goStep(2); return; }
 
-    setBtnLoading(btn, true, 'Submitting order…');
+    setBtnLoading(btn, true, 'Submitting order… 0s');
+    var stopProgress = startSubmitProgress(btn);
 
     var cfg = App.cfg();
     var sub = subtotal();
@@ -476,7 +505,13 @@
     var id = ref.key;
     order.id = id;
 
-    ref.set(order).then(function () {
+    var savePromise = ref.set(order);
+    var saveTimeout = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error('The connection is taking too long. Please check internet and try again.')); }, 15000);
+    });
+
+    Promise.race([savePromise, saveTimeout]).then(function () {
+      stopProgress();
       var ts = Date.now();
       var rev = total;
 
@@ -510,6 +545,7 @@
       App.Cart.removeIds(sel.map(function (x) { return x.id; }));
       showDone(id, total, order, cfg);
     }).catch(function (e) {
+      stopProgress();
       setBtnLoading(btn, false);
       App.toast('Could not save order: ' + (e.message || 'please try again'), 'err');
     });
@@ -552,7 +588,6 @@
 
   function boot() {
     var list = el('cartList');
-    if (list) list.addEventListener('click', onCartClick);
 
     var s1n = el('s1Next');
     if (s1n) s1n.addEventListener('click', function () {

@@ -493,7 +493,6 @@
       '<footer class="site-foot">' +
         '<div class="wrap foot-grid">' +
           '<div class="f-col">' +
-            '<img class="f-logo" src="assets/shop-logo.webp" alt="">' +
             '<b class="f-t" id="ftName"></b>' +
             '<p id="ftAddr" dir="auto"></p>' +
           '</div>' +

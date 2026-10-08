@@ -466,6 +466,11 @@ main { flex: 1 0 auto; width: 100%; }
 .btn-wa:hover { filter: brightness(1.04); }
 .btn-ok { background: var(--ok); color: #fff; }
 .btn:disabled { opacity: .5; pointer-events: none; }
+.btn.is-loading {
+  background: linear-gradient(90deg, var(--gold) var(--submit-progress, 12%), #fcd58b var(--submit-progress, 12%));
+  color: var(--navy);
+  min-width: 190px;
+}
 .btn-block { width: 100%; }
 .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 10px; }
 
@@ -571,7 +576,7 @@ main { flex: 1 0 auto; width: 100%; }
 .cart-nm b { display: block; font-size: 14.5px; color: var(--navy); }
 .cart-nm span { font-size: 13px; color: var(--muted); font-weight: 700; }
 .qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 6px; }
-.qty button { width: 30px; height: 30px; font-weight: 800; color: var(--navy); background: #f8fafc; }
+.qty button { width: 30px; height: 30px; font-weight: 800; color: var(--navy); background: #f8fafc; touch-action: manipulation; }
 .qty button:hover { background: #eef2f7; }
 .qty span { min-width: 34px; text-align: center; font-weight: 800; font-size: 14px; }
 .cart-rt { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
