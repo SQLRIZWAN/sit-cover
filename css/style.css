@@ -820,6 +820,10 @@ main { flex: 1 0 auto; width: 100%; }
 .hbtn-ic.is-on .ic-x { display: none; }
 .hbtn-ic.is-on .ic-c { display: block; }
 .ai-msgs { flex: 1; overflow-y: auto; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; gap: 10px; }
+/* Column flex shrinks items to fit the box; with overflow:hidden on the card
+   its automatic minimum height is 0, which used to squash the price + buttons
+   out of view. Keep every message and card at its natural height. */
+.ai-msgs > * { flex: 0 0 auto; }
 .msg { max-width: 86%; padding: 10px 13px; border-radius: 15px; font-size: 13.8px; line-height: 1.5; word-wrap: break-word; white-space: pre-line; }
 .msg.bot { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 5px; align-self: flex-start; color: #1f2937; }
 .msg.me { background: var(--navy); color: #fff; border-bottom-right-radius: 5px; align-self: flex-end; }
@@ -839,11 +843,117 @@ main { flex: 1 0 auto; width: 100%; }
   max-width: 92%;
   box-shadow: var(--sh);
 }
-.ai-prod .ap-img { aspect-ratio: 16/10; background: #eef2f7; }
-.ai-prod .ap-img img { width: 100%; height: 100%; object-fit: cover; }
-.ai-prod .ap-b { padding: 10px 12px 12px; }
-.ai-prod .ap-b b { display: block; font-size: 14px; color: var(--navy); }
-.ai-prod .ap-b .pr { font-weight: 900; color: var(--gold-d); font-size: 15.5px; margin: 3px 0 9px; }
+.ai-prod .ap-img {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #eef2f7;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+.ai-prod .ap-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ai-prod .ap-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 9px;
+  border-radius: 99px;
+  background: rgba(15, 23, 42, .82);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  backdrop-filter: blur(4px);
+}
+.ai-prod .ap-b { padding: 10px 11px 11px; }
+.ai-prod .ap-b b { display: block; font-size: 14px; line-height: 1.3; color: var(--navy); }
+.ai-prod .pr {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-weight: 900;
+  color: var(--gold-d);
+  font-size: 15.5px;
+  margin: 4px 0 9px;
+}
+.ai-prod .ap-stock {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 99px;
+  background: #ecfdf5;
+  color: #059669;
+}
+.ai-prod .ap-stock.out { background: #fef2f2; color: #dc2626; }
+.ai-prod .ap-acts { display: flex; gap: 8px; }
+.ai-prod .ap-acts .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+.ai-prod .ap-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  border: 0;
+  border-top: 1px solid #eef1f6;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ai-prod .ap-toggle .ap-chev {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .18s;
+}
+.ai-prod.open .ap-toggle .ap-chev { transform: rotate(180deg); }
+.ai-prod .ap-more { display: none; padding: 2px 11px 12px; }
+.ai-prod.open .ap-more { display: block; }
+.ai-prod .ap-more p { margin: 0 0 9px; font-size: 12.8px; line-height: 1.55; color: #4b5563; }
+.ai-prod .ap-specs { list-style: none; margin: 0 0 6px; padding: 0; font-size: 12.2px; }
+.ai-prod .ap-specs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #eef1f6;
+  color: var(--muted);
+}
+.ai-prod .ap-specs li b { color: var(--navy); font-weight: 800; text-align: right; }
+.ai-prod .ap-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: 12.8px;
+  font-weight: 800;
+  color: var(--gold-d);
+  text-decoration: none;
+  border-bottom: 1.5px solid transparent;
+}
+.ai-prod .ap-link:hover { border-bottom-color: var(--gold); }
 .ai-att { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fffbeb; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--gold-d); font-weight: 700; }
 .ai-att[hidden] { display: none; }
 .ai-att img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; }
@@ -1586,4 +1696,54 @@ button:disabled, .btn[disabled] { opacity: .55; cursor: not-allowed; }
 html.ai-lock, html.ai-lock body { overflow: hidden; }
 @media (max-width: 700px) {
   .ai-panel.is-full { border-radius: 0; }
+}
+
+/* ------------------------------------------------------------------
+ * Install banner (PWA)
+ * ------------------------------------------------------------------ */
+.pwa-bar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 10px 12px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 15px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, .34);
+  animation: pwaIn .26s ease;
+}
+@keyframes pwaIn { from { transform: translateY(18px); opacity: 0; } to { transform: none; opacity: 1; } }
+.pwa-bar .pwa-ic { font-size: 22px; flex: 0 0 auto; }
+.pwa-bar .pwa-tx { flex: 1 1 auto; min-width: 0; }
+.pwa-bar .pwa-tx b { display: block; font-size: 13.5px; line-height: 1.25; }
+.pwa-bar .pwa-tx small { display: block; font-size: 11.5px; color: #cbd5e1; }
+.pwa-bar .pwa-go {
+  flex: none;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--gold);
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.pwa-bar .pwa-x {
+  flex: none;
+  width: 38px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 17px;
+  cursor: pointer;
+}
+@media (max-width: 359px) {
+  .pwa-bar .pwa-tx small { display: none; }
 }

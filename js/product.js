@@ -14,12 +14,7 @@
     mediaAsked[p.id] = true;
     if (!App.DB) { cb(); return; }
     App.DB.ref('media/' + p.id).once('value').then(function (s) {
-      var v = s.val() || {};
-      var arr = [];
-      Object.keys(v).sort().forEach(function (k) {
-        if (v[k] && v[k].url) arr.push(v[k]);
-      });
-      mediaCache[p.id] = arr;
+      mediaCache[p.id] = App.hydrateMedia(s.val());
       cb();
     }).catch(function () { mediaAsked[p.id] = false; cb(); });
   }

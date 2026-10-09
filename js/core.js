@@ -189,6 +189,62 @@
     return null;
   };
 
+  // There is no Firebase Storage bucket, so videos live in the database —
+  // where a single string tops out at 10 MB. Anything bigger is split into
+  // chunks and written one at a time.
+  App.VIDEO_MAX_BYTES = 20 * 1024 * 1024;
+  App.VIDEO_CHUNK_LEN = 4000000;
+
+  App.videoHead = function (format, data) {
+    var i = data ? data.indexOf(',') : -1;
+    if (i > -1) return data.slice(0, i + 1);
+    return 'data:video/' + String(format || 'mp4').toLowerCase().replace(/[^a-z0-9]+/g, '') + ';base64,';
+  };
+
+  App.splitB64 = function (data) {
+    var i = data.indexOf(',');
+    var body = i > -1 ? data.slice(i + 1) : data;
+    var parts = [];
+    for (var p = 0; p < body.length; p += App.VIDEO_CHUNK_LEN) parts.push(body.slice(p, p + App.VIDEO_CHUNK_LEN));
+    return parts;
+  };
+
+  // Turns the `media/{id}` node (keys m0…m5, chunked videos carry `ch`)
+  // back into an ordered array the pages can render.
+  App.hydrateMedia = function (raw) {
+    if (!raw) return [];
+    var keys = [];
+    if (Array.isArray(raw)) {
+      for (var a = 0; a < raw.length; a++) keys.push(String(a));
+    } else {
+      keys = Object.keys(raw);
+    }
+    keys.sort(function (x, y) {
+      var nx = parseInt(String(x).replace(/\D/g, ''), 10) || 0;
+      var ny = parseInt(String(y).replace(/\D/g, ''), 10) || 0;
+      return nx - ny;
+    });
+    var out = [];
+    keys.forEach(function (k) {
+      var m = raw[k];
+      if (!m || typeof m !== 'object') return;
+      if (m.chunked && m.ch && typeof m.ch === 'object') {
+        var cn = Object.keys(m.ch).sort(function (x, y) { return (Number(x) || 0) - (Number(y) || 0); });
+        if (!cn.length) return;
+        var copy = {};
+        for (var kk in m) if (kk !== 'ch' && kk !== '_b64') copy[kk] = m[kk];
+        var body = '';
+        for (var n = 0; n < cn.length; n++) body += m.ch[cn[n]];
+        copy.url = (m.head || m.mime || App.videoHead(m.format, '')) + body;
+        copy.hydrated = true;
+        out.push(copy);
+        return;
+      }
+      if (m.url || m.thumb) out.push(m);
+    });
+    return out;
+  };
+
   // Icon support: emoji text, "prefix:name" (Iconify CDN) or a full https data/URL.
   var ICON_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/i;
 
@@ -571,15 +627,15 @@
         }
         if (onProgress) onProgress(15);
         if (isVideo) {
-          if (file.size > 2.5 * 1024 * 1024) {
-            reject(new Error('Video too large (max 2.5 MB) — trim it or send a photo instead'));
+          if (file.size > App.VIDEO_MAX_BYTES) {
+            reject(new Error('Video too large (max 20 MB) — trim it or send a photo instead'));
             return;
           }
           videoPoster(file).then(function (poster) {
             if (onProgress) onProgress(60);
             return readDataURL(file).then(function (data) {
               if (onProgress) onProgress(100);
-              resolve({
+              var out = {
                 type: 'video',
                 url: data,
                 thumb: poster,
@@ -587,7 +643,13 @@
                 cloud: 'inline',
                 format: String(file.name || '').split('.').pop() || 'mp4',
                 bytes: file.size
-              });
+              };
+              if (data.length > App.VIDEO_CHUNK_LEN) {
+                out.chunked = true;
+                out._b64 = data;
+                out.head = App.videoHead(out.format, data);
+              }
+              resolve(out);
             });
           }).catch(function (e) { reject(e); });
         } else {
@@ -701,7 +763,7 @@
           '<hr>' +
           '<a id="drPhone" href="#">&#128222; <span></span></a>' +
           '<a id="drWa" href="#" target="_blank" rel="noopener">&#128172; WhatsApp</a>' +
-          '<a id="drMail" href="#" class="hide">&#9993;&#65039; Email</a>' +
+          '<a id="drMail" href="#" class="hide"><span>&#9993;&#65039;</span> <span></span></a>' +
           '<a id="drIg" href="#" target="_blank" rel="noopener" class="hide">&#128248; Instagram</a>' +
         '</nav>' +
       '</aside>';
@@ -743,6 +805,13 @@
   function applyConfigUI() {
     var c = App.cfg();
     var setText = function (sel, v) { var el = $(sel); if (el) el.textContent = v || ''; };
+    // Drawer/footer markup differs per page, so a span index may be missing.
+    var setSpanText = function (el, idx, v) {
+      if (!el) return;
+      var sp = el.querySelectorAll('span');
+      var t = sp[idx] || sp[sp.length - 1];
+      if (t) t.textContent = v;
+    };
 
     setText('#bnName', c.shopName);
     setText('#bnNameAr', c.shopNameAr);
@@ -774,7 +843,7 @@
       if (c.email) {
         drMail.href = 'mailto:' + c.email;
         drMail.className = '';
-        drMail.querySelectorAll('span')[1].textContent = c.email;
+        setSpanText(drMail, 1, c.email);
       } else drMail.className = 'hide';
     }
     var drIg = $('#drIg');
@@ -786,19 +855,19 @@
     var ftPhone = $('#ftPhone');
     if (ftPhone) {
       ftPhone.href = 'tel:' + String(c.phone).replace(/\s/g, '');
-      ftPhone.querySelectorAll('span')[1].textContent = 'Shop: ' + c.phone;
+      setSpanText(ftPhone, 1, 'Shop: ' + c.phone);
     }
     var ftOwner = $('#ftOwner');
     if (ftOwner) {
       ftOwner.href = 'tel:' + String(c.ownerPhone).replace(/[^\d+]/g, '');
-      ftOwner.querySelectorAll('span')[1].textContent = 'Owner: ' + c.ownerPhone;
+      setSpanText(ftOwner, 1, 'Owner: ' + c.ownerPhone);
     }
     var ftMail = $('#ftMail');
     if (ftMail) {
       if (c.email) {
         ftMail.href = 'mailto:' + c.email;
         ftMail.className = '';
-        ftMail.querySelectorAll('span')[1].textContent = c.email;
+        setSpanText(ftMail, 1, c.email);
       } else ftMail.className = 'hide';
     }
     var ftWa = $('#ftWa');
@@ -1034,8 +1103,10 @@
     DB.ref('config').on('value', function (s) {
       App.state.config = s.val() || null;
       App.loaded.config = true;
-      applyConfigUI();
+      // Subscribers (WAMD page, checkout payment step, …) must run even if a
+      // piece of chrome on this page is missing — never let paint kill them.
       fire('config');
+      try { applyConfigUI(); } catch (e) { console.error('configUI', e); }
     }, function (e) { console.warn('config', e); showOffline('Cannot read live data: ' + (e.message || ''), true); });
 
     DB.ref('categories').on('value', function (s) {
@@ -1172,6 +1243,96 @@
     }
   }
 
+  // --- PWA: manifest + service worker + one-tap install banner ---------
+  var deferredInstall = null;
+  var pwaBar = null;
+
+  function initPWA() {
+    try {
+      var head = document.head || document.getElementsByTagName('head')[0];
+
+      if (head && !document.querySelector('link[rel="manifest"]')) {
+        var lk = document.createElement('link');
+        lk.rel = 'manifest';
+        lk.href = 'manifest.webmanifest';
+        head.appendChild(lk);
+      }
+      if (head && !document.querySelector('link[rel="apple-touch-icon"]')) {
+        var at = document.createElement('link');
+        at.rel = 'apple-touch-icon';
+        at.href = 'assets/icon-192.png';
+        head.appendChild(at);
+      }
+      ['apple-mobile-web-app-capable|yes', 'mobile-web-app-capable|yes',
+       'apple-mobile-web-app-status-bar-style|black-translucent',
+       'application-name|Sit Cover Shop'].forEach(function (pair) {
+        var bits = pair.split('|');
+        if (head && !document.querySelector('meta[name="' + bits[0] + '"]')) {
+          var mt = document.createElement('meta');
+          mt.name = bits[0];
+          mt.content = bits[1];
+          head.appendChild(mt);
+        }
+      });
+
+      if (!window.__DISABLE_SW && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+        window.addEventListener('load', function () {
+          try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
+        });
+      }
+
+      var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+        /safari/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
+      var standalone = window.navigator.standalone === true ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+
+      function dismissed() {
+        try { return localStorage.getItem('sc_pwa_dismissed') === '1'; } catch (e) { return false; }
+      }
+      function hideBar(persist) {
+        if (pwaBar && pwaBar.parentNode) pwaBar.parentNode.removeChild(pwaBar);
+        pwaBar = null;
+        if (persist) { try { localStorage.setItem('sc_pwa_dismissed', '1'); } catch (e) {} }
+      }
+      function showBar() {
+        if (pwaBar || dismissed() || standalone) return;
+        var manual = isIOS && !deferredInstall;
+        if (!deferredInstall && !manual) return;
+        pwaBar = document.createElement('div');
+        pwaBar.className = 'pwa-bar';
+        pwaBar.setAttribute('role', 'status');
+        pwaBar.innerHTML =
+          '<span class="pwa-ic" aria-hidden="true">📲</span>' +
+          '<span class="pwa-tx"><b>Install the shop app</b><small>Add it to your home screen</small></span>' +
+          '<button type="button" class="pwa-go">' + (manual ? 'How?' : 'Install') + '</button>' +
+          '<button type="button" class="pwa-x" aria-label="Dismiss install banner">✕</button>';
+        document.body.appendChild(pwaBar);
+        pwaBar.querySelector('.pwa-x').addEventListener('click', function () { hideBar(true); });
+        pwaBar.querySelector('.pwa-go').addEventListener('click', function () {
+          if (deferredInstall) {
+            var ev = deferredInstall;
+            deferredInstall = null;
+            try { ev.prompt(); } catch (e) {}
+            if (ev.userChoice && ev.userChoice.then) {
+              ev.userChoice.then(function () { hideBar(true); });
+            } else { hideBar(true); }
+          } else {
+            App.toast('Tap Share ⬆ then “Add to Home Screen”', 'ok');
+            hideBar(true);
+          }
+        });
+      }
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredInstall = e;
+        showBar();
+      });
+      window.addEventListener('appinstalled', function () { hideBar(true); deferredInstall = null; });
+      if (isIOS && !standalone) setTimeout(showBar, 2500);
+    } catch (e) { console.warn('pwa', e); }
+  }
+
   App.boot = function () {
     var h = $('#siteHeader');
     if (h) {
@@ -1182,7 +1343,7 @@
     var f = $('#siteFooter');
     if (f) f.innerHTML = footerHTML();
 
-    applyConfigUI();
+    try { applyConfigUI(); } catch (e) { console.error('configUI', e); }
     initDrawer();
     initTranslate();
     initPreloader();
@@ -1204,6 +1365,7 @@
     App.on('products', function () { App.Cart.repair(); App.updateCartBadge(); });
     App.on('config', function () { App.applyBranding(); });
     App.on('fbReady', function () { if (App.currentUid()) App.Cart.pullFromCloud(); });
+    initPWA();
   };
 
   if (document.readyState === 'loading') {
