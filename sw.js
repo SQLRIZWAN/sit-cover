@@ -1,7 +1,19 @@
 /* Sit Cover shell — network first, cache as an offline fallback.
-   Never cache cross-origin calls (fonts, Firebase, Gemini). */
-var CACHE = 'sit-cover-v1';
-var SHELL = ['./', './index.html', './css/style.css', './js/core.js', './js/config.js'];
+   Never cache cross-origin calls (fonts, Firebase, Gemini).
+   Bump CACHE whenever a release must invalidate old offline copies. */
+var CACHE = 'sit-cover-v2';
+var SHELL = [
+  './',
+  './index.html', './order.html', './product.html', './profile.html',
+  './myorders.html', './privacy.html', './about.html', './report.html', './wamd.html',
+  './css/style.css',
+  './js/core.js', './js/config.js', './js/auth.js', './js/ai.js', './js/home.js',
+  './js/order.js', './js/product.js', './js/profile.js', './js/myorders.js',
+  './js/report.js', './js/wamd.js',
+  './manifest.webmanifest',
+  './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable-512.png',
+  './assets/shop-logo.webp', './assets/shop-banner.webp', './assets/logo.svg'
+];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
@@ -20,6 +32,13 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+function offlinePage(req) {
+  // `product.html?id=x` must still open while offline — match without the query.
+  return caches.match(req, { ignoreSearch: true }).then(function (m) {
+    return m || caches.match('./index.html');
+  });
+}
+
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
@@ -35,9 +54,9 @@ self.addEventListener('fetch', function (e) {
       }
       return res;
     }).catch(function () {
-      return caches.match(req).then(function (m) {
+      if (req.mode === 'navigate') return offlinePage(req);
+      return caches.match(req, { ignoreSearch: true }).then(function (m) {
         if (m) return m;
-        if (req.mode === 'navigate') return caches.match('./index.html');
         return Promise.reject(new Error('offline and not cached'));
       });
     })

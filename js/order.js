@@ -47,7 +47,60 @@
   }
 
   function selectedItems() {
-    return App.Cart.list().filter(function (x) { return S.sel[x.id]; });
+    return App.Cart.list().filter(function (x) { return S.sel[String(x.id)]; });
+  }
+
+  // The basket is re-keyed when the signed-in copy is merged, when an old id-less
+  // line is repaired, or when another tab writes to it. Selection is therefore
+  // re-based on the LIVE basket on every render: unknown keys are dropped and
+  // newly appeared lines are selected. Without this a stale draft shows
+  // "1 of 1 selected" while the real selection is empty and Continue refuses
+  // to move on.
+  function syncSel(items) {
+    var next = {};
+    items.forEach(function (x) {
+      var k = String(x.id);
+      var prev = S.sel[k];
+      var ok = stockOf(x).ok;
+      // A line that cannot be ordered right now is always unticked, so the
+      // tick, the "n of m selected" counter and the subtotal never disagree.
+      next[k] = ok ? (prev === undefined ? true : prev) : false;
+    });
+    S.sel = next;
+    S.selInit = true;
+  }
+
+  // Stock lives on the product, not in the basket, so it is read live here.
+  // out  — the shop flipped the product to "out of stock"
+  // max  — a stock quantity is published (null = unlimited)
+  function stockOf(item) {
+    var qty = Math.max(1, Number(item.qty || 1));
+    var p = App.getProduct ? App.getProduct(item.id) : null;
+    if (!p) return { ok: true, out: false, max: null, qty: qty, name: item.name };
+    var out = p.inStock === false;
+    var max = null;
+    if (p.stockQty !== undefined && p.stockQty !== null && p.stockQty !== '') {
+      var n = Number(p.stockQty);
+      if (isFinite(n) && n >= 0) {
+        max = Math.floor(n);
+        if (max <= 0) out = true;
+      }
+    }
+    if (max !== null && qty > max) qty = max;
+    return {
+      ok: !out && (max === null || qty <= max),
+      out: out,
+      max: max,
+      qty: qty,
+      name: p.name || item.name
+    };
+  }
+
+  function stockProblems(sel) {
+    return sel.filter(function (x) { return !stockOf(x).ok; }).map(function (x) {
+      var s = stockOf(x);
+      return s.out ? (s.name + ' is out of stock') : (s.name + ' — only ' + s.max + ' left');
+    });
   }
 
   function subtotal() {
@@ -108,10 +161,7 @@
 
     var items = App.Cart.list();
 
-    if (!S.selInit) {
-      items.forEach(function (x) { if (S.sel[x.id] === undefined) S.sel[x.id] = true; });
-      S.selInit = true;
-    }
+    syncSel(items);
 
     if (!items.length) {
       if (panel) panel.style.display = 'none';
@@ -122,15 +172,19 @@
     if (emptyBox) emptyBox.style.display = 'none';
 
     list.innerHTML = items.map(function (x) {
-      var on = !!S.sel[x.id];
-      return '<div class="cart-row' + (on ? '' : ' off') + '" data-id="' + App.esc(x.id) + '">' +
-        '<button type="button" class="ck' + (on ? ' on' : '') + '" data-act="tick" aria-label="select"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></button>' +
+      var on = !!S.sel[String(x.id)];
+      var st = stockOf(x);
+      if (!st.ok) on = false;
+      var maxed = st.max !== null && (x.qty || 1) >= st.max;
+      return '<div class="cart-row' + (on ? '' : ' off') + (st.ok ? '' : ' bad') + '" data-id="' + App.esc(x.id) + '">' +
+        '<button type="button" class="ck' + (on ? ' on' : '') + '" data-act="tick"' + (st.ok ? '' : ' disabled') + ' aria-label="select"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></button>' +
         '<div class="cart-img">' + (x.image ? '<img src="' + App.esc(x.image) + '" alt="" loading="lazy">' : '<div style="display:flex;height:100%;align-items:center;justify-content:center">🛍️</div>') + '</div>' +
         '<div class="cart-nm"><b>' + App.esc(x.name) + '</b><span>' + App.fmtKD(x.price) + ' each</span>' +
+          (st.ok ? '' : '<span class="cart-oos">' + (st.out ? 'Out of stock' : 'Only ' + st.max + ' left') + '</span>') +
           '<div class="qty" role="group" aria-label="Quantity for ' + App.esc(x.name) + '">' +
             '<button type="button" class="q-b" data-act="minus" aria-label="Decrease quantity of ' + App.esc(x.name) + '">−</button>' +
             '<span class="q-n" aria-live="polite">' + (x.qty || 1) + '</span>' +
-            '<button type="button" class="q-b" data-act="plus" aria-label="Increase quantity of ' + App.esc(x.name) + '">+</button>' +
+            '<button type="button" class="q-b" data-act="plus"' + (maxed ? ' disabled' : '') + ' aria-label="Increase quantity of ' + App.esc(x.name) + '">+</button>' +
           '</div>' +
         '</div>' +
         '<div class="cart-rt"><b>' + App.fmtKD((Number(x.price) || 0) * (x.qty || 1)) + '</b>' +
@@ -142,6 +196,13 @@
     el('cSelCount').textContent = sel.length + ' of ' + items.length + ' selected';
     el('cSubtotal').textContent = App.fmtKD(subtotal());
     el('s1Next').disabled = sel.length === 0;
+
+    var warn = el('cStockWarn');
+    var bad = stockProblems(App.Cart.list());
+    if (warn) {
+      warn.hidden = bad.length === 0;
+      warn.textContent = bad.length ? bad.join(' • ') : '';
+    }
 
     Array.prototype.forEach.call(list.querySelectorAll('[data-act]'), function (button) {
       button.addEventListener('click', function (e) {
@@ -172,12 +233,20 @@
     }
     if (!item) return;
 
-    if (act === 'tick') S.sel[id] = !S.sel[id];
-    if (act === 'plus') App.Cart.setQty(id, Number(item.qty || 1) + 1);
+    if (act === 'tick') S.sel[String(id)] = !S.sel[String(id)];
+    if (act === 'plus') {
+      var st = stockOf(item);
+      var want = Number(item.qty || 1) + 1;
+      if (st.max !== null && want > st.max) {
+        App.toast('Only ' + st.max + ' of these in stock', 'err');
+        want = st.max;
+      }
+      App.Cart.setQty(id, want);
+    }
     if (act === 'minus') App.Cart.setQty(id, Number(item.qty || 1) - 1);
     if (act === 'del') {
       App.Cart.remove(id);
-      delete S.sel[id];
+      delete S.sel[String(id)];
       App.toast('Removed from basket');
     }
     renderCart();
@@ -545,6 +614,8 @@
     }
     var sel = selectedItems();
     if (!sel.length) { App.toast('No products selected', 'err'); goStep(1); return; }
+    var stockErr = stockProblems(sel);
+    if (stockErr.length) { App.toast(stockErr[0], 'err'); goStep(1); return; }
     if (!S.customer.name || !S.customer.phone) { App.toast('Missing details — go back a step', 'err'); goStep(2); return; }
 
     setBtnLoading(btn, true, 'Submitting order…');
@@ -805,7 +876,13 @@
 
     var s1n = el('s1Next');
     if (s1n) s1n.addEventListener('click', function () {
-      if (!selectedItems().length) { App.toast('Select at least one product', 'err'); return; }
+      // Re-base on the live basket right before moving on: another tab, the
+      // cloud copy or a repair may have re-keyed the lines since the last paint.
+      syncSel(App.Cart.list());
+      var sel = selectedItems();
+      if (!sel.length) { App.toast('Select at least one product', 'err'); renderCart(); return; }
+      var bad = stockProblems(sel);
+      if (bad.length) { App.toast(bad[0], 'err'); renderCart(); return; }
       goStep(2);
     });
     var s1b = el('s1Back');
@@ -864,6 +941,16 @@
     if (why && whyText) why.addEventListener('click', function () { whyText.hidden = !whyText.hidden; });
 
     if (window.AppAuth) App.on('auth', function () { applyGate(); fillFromProfile(); });
+
+    // The basket is written from four places (this page, the header cart, the
+    // AI product cards and the signed-in cloud copy) and the stock flag can
+    // change underneath it — repaint or at least re-base the selection.
+    function rebake() {
+      if (S.step === 1 && !S.done) renderCart();
+      else syncSel(App.Cart.list());
+    }
+    App.on('cart', rebake);
+    App.on('products', rebake);
 
     restoreDraft();
     applyGate();

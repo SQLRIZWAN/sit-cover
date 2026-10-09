@@ -69,39 +69,56 @@
       </div>
 
       <!-- Signed in ------------------------------------------------------- -->
-      <div class="card pf-card" id="profIn" hidden>
-        <div class="pf-head">
-          <button type="button" class="pf-av-btn" id="pfPicBtn" aria-label="Change profile photo">
-            <span class="pf-av" id="pfAv"></span>
-            <span class="pf-cam" aria-hidden="true">📷</span>
-          </button>
-          <input type="file" id="pfFile" accept="image/*" hidden>
-          <div class="pf-id">
-            <b id="pfNameOut">—</b>
-            <span id="pfEmailOut">—</span>
-            <span class="pf-badge">Signed in with Google</span>
+      <div class="card pf-card pf-card-in" id="profIn" hidden>
+        <div class="pf-cover">
+          <div class="pf-cover-in"></div>
+          <div class="pf-av-wrap">
+            <button type="button" class="pf-av-btn" id="pfPicBtn" aria-label="View profile photo">
+              <span class="pf-av" id="pfAv"></span>
+              <span class="pf-zoom" aria-hidden="true">⤢</span>
+            </button>
+            <input type="file" id="pfFile" accept="image/*" hidden>
           </div>
+        </div>
+
+        <div class="pf-id-block">
+          <b id="pfNameOut">—</b>
+          <span id="pfEmailOut">—</span>
+          <div class="pf-chips">
+            <span class="pf-badge">✓ Signed in with Google</span>
+            <span class="pf-badge pf-badge-gold" id="pfSince">Member</span>
+          </div>
+        </div>
+
+        <div class="pf-stats">
+          <div class="pf-stat"><b id="pfStatOrders">0</b><span>Orders</span></div>
+          <div class="pf-stat"><b id="pfStatPhone">—</b><span>Phone</span></div>
+          <div class="pf-stat"><b id="pfStatItems">0</b><span>Items</span></div>
         </div>
 
         <div class="pf-actions-top">
           <button type="button" class="btn btn-ghost btn-sm" id="pfPicBtn2">Change photo</button>
           <button type="button" class="btn btn-ghost btn-sm hide" id="pfPicReset">Use Google photo</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="pfViewDp">View full photo</button>
         </div>
 
-        <div class="field">
-          <label for="pfName">Full name</label>
-          <input id="pfName" type="text" maxlength="80" autocomplete="name" placeholder="Your name">
-        </div>
+        <div class="pf-sec">
+          <div class="pf-sec-t">Your details</div>
+          <div class="field">
+            <label for="pfName">Full name</label>
+            <input id="pfName" type="text" maxlength="80" autocomplete="name" placeholder="Your name">
+          </div>
 
-        <div class="field">
-          <label for="pfPhone">Phone number</label>
-          <input id="pfPhone" type="tel" maxlength="30" autocomplete="tel" placeholder="e.g. 9XXXXXXXX">
-          <div class="tip">Used to contact you about your orders.</div>
-        </div>
+          <div class="field">
+            <label for="pfPhone">Phone number</label>
+            <input id="pfPhone" type="tel" maxlength="30" autocomplete="tel" placeholder="e.g. 9XXXXXXXX">
+            <div class="tip">Used to contact you about your orders.</div>
+          </div>
 
-        <div class="field">
-          <label for="pfInfo">Extra information <span class="opt">(optional)</span></label>
-          <textarea id="pfInfo" maxlength="500" rows="3" placeholder="Address, delivery notes, preferred language…"></textarea>
+          <div class="field">
+            <label for="pfInfo">Extra information <span class="opt">(optional)</span></label>
+            <textarea id="pfInfo" maxlength="500" rows="3" placeholder="Address, delivery notes, preferred language…"></textarea>
+          </div>
         </div>
 
         <div class="pf-actions">

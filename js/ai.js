@@ -284,7 +284,9 @@
       if (!card) return;
       var act = t.getAttribute('data-ap');
       var id = card.getAttribute('data-pid');
-      var p = (App.state.products || {})[id];
+      // getProduct attaches its own id — reading the raw record straight from
+      // App.state.products would put `id: undefined` into the basket.
+      var p = App.getProduct ? App.getProduct(id) : (App.state.products || {})[id];
 
       if (act === 'info') {
         var on = card.classList.toggle('open');
@@ -296,13 +298,12 @@
       }
       if (!p) return;
       if (act === 'cart') {
-        App.Cart.add(p, 1);
-        App.toast('Added to your basket ✓', 'ok');
+        if (App.Cart.add(p, 1)) App.toast('Added to your basket ✓', 'ok');
         App.updateCartBadge && App.updateCartBadge();
         return;
       }
       if (act === 'buy') {
-        App.Cart.add(p, 1);
+        if (!App.Cart.add(p, 1)) return;
         setTimeout(function () { location.href = 'order.html'; }, 260);
       }
     });
@@ -354,10 +355,29 @@
     renderMsgs();
   }
 
+  // The product row stores a cached thumbnail, but the authoritative photo is
+  // the MAIN slot under media/{id}. Load it once per product so the card shows
+  // the picture the admin currently sees, not a stale copy.
+  var mediaCache = {};
+  var mediaAsked = {};
+
+  function cardMedia(p) {
+    if (p.media && p.media.length) return p.media[0];
+    if (mediaCache[p.id] && mediaCache[p.id].length) return mediaCache[p.id][0];
+    if (!mediaAsked[p.id] && App.DB) {
+      mediaAsked[p.id] = true;
+      App.DB.ref('media/' + p.id).once('value').then(function (s) {
+        mediaCache[p.id] = App.hydrateMedia(s.val());
+        renderMsgs();
+      }).catch(function () { mediaAsked[p.id] = false; });
+    }
+    return p.thumb ? { type: 'image', url: p.thumb, thumb: p.thumb } : null;
+  }
+
   function productCardHTML(id) {
-    var p = (App.state.products || {})[id];
+    var p = App.getProduct ? App.getProduct(id) : (App.state.products || {})[id];
     if (!p) return '';
-    var m = App.firstMedia(p);
+    var m = cardMedia(p);
     var thumb = m ? App.mediaThumb(m, 400) : '';
     var out = p.inStock === false;
     var cat = ((App.state.categories || {})[p.categoryId] || {}).name || '';
@@ -819,6 +839,11 @@
       saveScan('', '', query, matchedIds(reply).join(','));
     } catch (e) {}
   }
+
+  // Product cards live in the transcript — repaint them when the catalogue or
+  // a stock flag changes so the answer never goes stale.
+  App.on('products', function () { if (messages.length) renderMsgs(); });
+  App.on('categories', function () { if (messages.length) renderMsgs(); });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', dom);

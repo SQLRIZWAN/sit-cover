@@ -49,11 +49,35 @@
     if (el('pfPhone') && document.activeElement !== el('pfPhone')) el('pfPhone').value = p.phone || '';
     if (el('pfInfo') && document.activeElement !== el('pfInfo')) el('pfInfo').value = p.info || '';
 
+    // Stats strip — orders come from the live feed core.js already listens to.
+    var mine = App.state.myOrders || [];
+    var items = 0;
+    mine.forEach(function (o) {
+      (o.items || []).forEach(function (it) { items += Number(it.qty || 1); });
+    });
+    if (el('pfStatOrders')) el('pfStatOrders').textContent = String(mine.length);
+    if (el('pfStatItems')) el('pfStatItems').textContent = String(items);
+    if (el('pfStatPhone')) el('pfStatPhone').textContent = p.phone || '—';
+    if (el('pfSince') && p.signedInAt) {
+      try {
+        el('pfSince').textContent = 'Since ' +
+          new Date(Number(p.signedInAt)).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      } catch (e) {}
+    }
+
     var reset = el('pfPicReset');
     if (reset) {
       var custom = !!pendingPic || (!!p.photo && p.photo !== p.googlePhoto);
       reset.classList.toggle('hide', !custom);
     }
+  }
+
+  function viewPhoto() {
+    var p = AppAuth.profile();
+    if (!p) return;
+    var src = pendingPic != null ? pendingPic : p.photo;
+    if (!src) { App.toast('No photo yet — tap “Change photo” to add one', 'err'); return; }
+    App.viewImage(src, (p.name || 'Profile') + ' photo');
   }
 
   function openPicker() {
@@ -132,8 +156,11 @@
       }, 4000);
     });
 
-    var pic = el('pfPicBtn'), pic2 = el('pfPicBtn2'), file = el('pfFile');
-    if (pic) pic.addEventListener('click', openPicker);
+    var pic = el('pfPicBtn'), pic2 = el('pfPicBtn2'), file = el('pfFile'), view = el('pfViewDp');
+    // Tapping the avatar opens the photo full screen — changing it is a
+    // separate, explicit action so nobody overwrites their DP by accident.
+    if (pic) pic.addEventListener('click', viewPhoto);
+    if (view) view.addEventListener('click', viewPhoto);
     if (pic2) pic2.addEventListener('click', openPicker);
     if (file) file.addEventListener('change', function () {
       pickPhoto(file.files && file.files[0]);
@@ -171,6 +198,7 @@
     });
 
     App.on('auth', render);
+    App.on('myOrders', function () { if (!el('profIn').hidden) render(); });
     render();
   }
 

@@ -1,7 +1,92 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1, interactive-widget=resizes-content"><title>Report an Issue — Fahad Asi Manea Al-Zaferi Co</title><link rel="icon" href="assets/shop-logo.webp" type="image/webp">  <link rel="preconnect" href="https://fonts.googleapis.com">
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1, interactive-widget=resizes-content">
+  <title>Report an Issue — Fahad Asi Manea Al-Zaferi Co</title>
+  <meta name="description" content="Tell the shop what went wrong — add a screenshot and we will look into it.">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="assets/shop-logo.webp" type="image/webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" media="print" onload="this.media=&#39;all&#39;">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="css/style.css"></head><body><div id="preloader"><div class="pre-card"><img class="pre-logo" data-brand="loading" src="assets/shop-logo.webp" alt="logo"><div class="pre-name">Fahad Asi Manea Al-Zaferi Co</div><div class="pre-sub">Report an Issue</div><div class="pre-bar"><i></i></div></div></div><div id="siteHeader"></div><main><div class="wrap sect static-page"><div class="card"><h1>Report an issue</h1><p class="lead">Tell us what went wrong. We will review your message and improve the shop.</p><div class="field"><label for="rpName">Name</label><input id="rpName" type="text" maxlength="100" placeholder="Your name"></div><div class="field"><label for="rpPhone">Phone (optional)</label><input id="rpPhone" type="tel" maxlength="30" placeholder="Your phone number"></div><div class="field"><label for="rpType">Issue type</label><select id="rpType"><option>Website problem</option><option>Product problem</option><option>Order problem</option><option>Payment problem</option><option>Other</option></select></div><div class="field"><label for="rpMessage">Message</label><textarea id="rpMessage" maxlength="2000" rows="6" placeholder="Please describe the issue"></textarea></div><button class="btn btn-pri" id="rpSubmit">Submit Report</button><div id="rpStatus" class="tip"></div></div></div></main><div id="siteFooter"></div><div id="toast" class="toast"></div><script src="js/config.js"></script><script src="js/core.js"></script>
-  <script src="js/auth.js"></script><script src="js/report.js"></script></body></html>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="preloader">
+    <div class="pre-card">
+      <img class="pre-logo" data-brand="loading" src="assets/shop-logo.webp" alt="logo">
+      <div class="pre-name">Fahad Asi Manea Al-Zaferi Co</div>
+      <div class="pre-sub">Report an Issue</div>
+      <div class="pre-bar"><i></i></div>
+    </div>
+  </div>
+
+  <div id="siteHeader"></div>
+
+  <main>
+    <div class="wrap sect static-page">
+      <div class="card">
+        <h1>Report an issue</h1>
+        <p class="lead">Tell us what went wrong. A screenshot helps us fix it faster — we review every message.</p>
+
+        <div class="field">
+          <label for="rpName">Name</label>
+          <input id="rpName" type="text" maxlength="100" placeholder="Your name">
+        </div>
+
+        <div class="field">
+          <label for="rpPhone">Phone (optional)</label>
+          <input id="rpPhone" type="tel" maxlength="30" placeholder="Your phone number">
+        </div>
+
+        <div class="field">
+          <label for="rpType">Issue type</label>
+          <select id="rpType">
+            <option>Website problem</option>
+            <option>Product problem</option>
+            <option>Order problem</option>
+            <option>Payment problem</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="rpMessage">Message</label>
+          <textarea id="rpMessage" maxlength="2000" rows="6" placeholder="Please describe the issue"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Screenshot <span class="opt">(optional)</span></label>
+          <button type="button" class="rp-shot" id="rpShot">
+            <span class="rp-shot-ic" aria-hidden="true">📸</span>
+            <span class="rp-shot-tx"><b>Add a screenshot</b><small>Shows us exactly what you saw</small></span>
+          </button>
+          <input type="file" id="rpFile" accept="image/*" hidden>
+          <div class="rp-preview" id="rpPreview" hidden>
+            <img id="rpPreviewImg" alt="Screenshot preview">
+            <div class="rp-preview-meta">
+              <span id="rpPreviewName">screenshot</span>
+              <button type="button" class="btn btn-ghost btn-sm" id="rpRemove">Remove</button>
+            </div>
+          </div>
+          <div class="tip">JPG, PNG or WEBP — max 8 MB. It is compressed before it is sent.</div>
+        </div>
+
+        <button class="btn btn-pri" id="rpSubmit">Submit Report</button>
+        <div id="rpStatus" class="tip"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="siteFooter"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/report.js"></script>
+</body>
+</html>

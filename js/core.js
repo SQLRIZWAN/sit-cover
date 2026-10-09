@@ -165,6 +165,28 @@
     return o;
   };
 
+  // Live stock state for one product. `have` is how many are already in the
+  // basket — used to allow adding up to the published quantity but no further.
+  App.stockCheck = function (p, have) {
+    have = Number(have) || 0;
+    if (!p) return { ok: false, out: true, max: 0, left: 0, msg: 'Product not found' };
+    if (p.inStock === false) {
+      return { ok: false, out: true, max: null, left: 0, msg: (p.name || 'This item') + ' is out of stock' };
+    }
+    var max = null;
+    if (p.stockQty !== undefined && p.stockQty !== null && p.stockQty !== '') {
+      var n = Number(p.stockQty);
+      if (isFinite(n) && n >= 0) {
+        max = Math.floor(n);
+        if (max <= 0) return { ok: false, out: true, max: max, left: 0, msg: (p.name || 'This item') + ' is out of stock' };
+      }
+    }
+    if (max !== null && have >= max) {
+      return { ok: false, out: false, max: max, left: 0, msg: 'Only ' + max + ' of these in stock' };
+    }
+    return { ok: true, out: false, max: max, left: max === null ? null : (max - have), msg: '' };
+  };
+
   function fitImg(url, w) {
     if (!url || url.indexOf('/upload/') === -1) return url || '';
     return url.replace('/upload/', '/upload/w_' + w + ',q_auto,f_auto/');
@@ -370,33 +392,49 @@
     },
     add: function (p, qty) {
       var arr = App.Cart.list();
-      var m = App.firstMedia(p);
-      var image = p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '');
       var found = null;
       for (var i = 0; i < arr.length; i++) if (arr[i].id === p.id) found = arr[i];
+      var chk = App.stockCheck(p, found ? (found.qty || 1) : 0);
+      if (!chk.ok) { App.toast(chk.msg, 'err'); return null; }
+      var m = App.firstMedia(p);
+      var image = p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '');
+      var want = (found ? (found.qty || 1) : 0) + (qty || 1);
+      if (chk.max !== null && want > chk.max) want = chk.max;
       if (found) {
-        found.qty = (found.qty || 1) + (qty || 1);
+        found.qty = want;
         found.price = p.price;
         found.name = p.name;
         if (image) found.image = image;
       } else {
-        arr.push({ id: p.id, name: p.name, price: Number(p.price) || 0, qty: qty || 1, image: image });
+        arr.push({ id: p.id, name: p.name, price: Number(p.price) || 0, qty: want, image: image });
       }
       App.Cart.save(arr);
       return arr;
     },
     reset: function (p, qty) {
+      var chk = App.stockCheck(p, 0);
+      if (!chk.ok) { App.toast(chk.msg, 'err'); return null; }
       var m = App.firstMedia(p);
+      var n = Math.max(1, Number(qty) || 1);
+      if (chk.max !== null && n > chk.max) n = chk.max;
       App.Cart.save([{
         id: p.id, name: p.name, price: Number(p.price) || 0,
-        qty: qty || 1, image: p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '')
+        qty: n, image: p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '')
       }]);
+      return App.Cart.list();
     },
     setQty: function (id, qty) {
       var arr = App.Cart.list();
       for (var i = 0; i < arr.length; i++) {
         if (arr[i].id === id) {
-          arr[i].qty = Math.max(1, Math.min(99, qty));
+          var want = Math.max(1, Math.min(99, qty));
+          var p = App.getProduct(id);
+          var chk = p ? App.stockCheck(p, 0) : { ok: true, max: null };
+          if (chk.max !== null && want > chk.max) {
+            want = Math.max(1, chk.max);
+            App.toast('Only ' + chk.max + ' of these in stock', 'err');
+          }
+          arr[i].qty = want;
         }
       }
       App.Cart.save(arr);
@@ -751,21 +789,32 @@
           '<div><b id="drName"></b><small id="drSub"></small></div>' +
           '<button class="dr-close" id="drClose" aria-label="Close">&#10005;</button>' +
         '</div>' +
+        '<div class="dr-body">' +
         '<nav>' +
-          '<a href="profile.html" id="drAcct"><span class="d-ico" id="drAcctI">&#128100;</span> <span id="drAcctT">Sign in</span></a>' +
-          '<a href="myorders.html" id="drOrders"><span class="d-ico">&#128230;</span> <span>My Orders</span><span class="dr-badge hide" id="drOrdersN">0</span></a>' +
-          '<a href="index.html">&#127968; Home</a>' +
-          '<a href="about.html">&#8505;&#65039; About Us</a>' +
-          '<a href="privacy.html">&#128274; Privacy Policy</a>' +
-          '<a href="report.html">&#128203; Report an issue</a>' +
-          '<a href="#" id="drTranslate">&#127760; Translate</a>' +
-          '<hr><div class="d-label">Categories</div><div id="drCats"></div>' +
-          '<hr>' +
-          '<a id="drPhone" href="#">&#128222; <span></span></a>' +
-          '<a id="drWa" href="#" target="_blank" rel="noopener">&#128172; WhatsApp</a>' +
-          '<a id="drMail" href="#" class="hide"><span>&#9993;&#65039;</span> <span></span></a>' +
-          '<a id="drIg" href="#" target="_blank" rel="noopener" class="hide">&#128248; Instagram</a>' +
+          '<div class="d-label">Account</div>' +
+          '<a href="profile.html" id="drAcct"><span class="d-ico" id="drAcctI">&#128100;</span> <span id="drAcctT">Sign in</span><span class="d-go" aria-hidden="true">&#8250;</span></a>' +
+          '<a href="myorders.html" id="drOrders"><span class="d-ico">&#128230;</span> <span>My Orders</span><span class="dr-badge hide" id="drOrdersN">0</span><span class="d-go" aria-hidden="true">&#8250;</span></a>' +
+          '<div class="d-label">Shop</div>' +
+          '<a href="index.html"><span class="d-ico">&#127968;</span> <span>Home</span></a>' +
+          '<a href="about.html"><span class="d-ico">&#8505;&#65039;</span> <span>About Us</span></a>' +
+          '<a href="privacy.html"><span class="d-ico">&#128274;</span> <span>Privacy Policy</span></a>' +
+          '<a href="report.html"><span class="d-ico">&#128203;</span> <span>Report an issue</span></a>' +
+          '<a href="#" id="drTranslate"><span class="d-ico">&#127760;</span> <span>Translate</span></a>' +
+          '<div class="d-label">Categories</div><div id="drCats"></div>' +
+          '<div class="d-label">Contact</div>' +
+          '<a id="drPhone" href="#"><span class="d-ico">&#128222;</span> <span></span></a>' +
+          '<a id="drWa" href="#" target="_blank" rel="noopener"><span class="d-ico">&#128172;</span> <span>WhatsApp</span></a>' +
+          '<a id="drMail" href="#" class="hide"><span class="d-ico">&#9993;&#65039;</span> <span></span></a>' +
+          '<a id="drIg" href="#" target="_blank" rel="noopener" class="hide"><span class="d-ico">&#128248;</span> <span>Instagram</span></a>' +
         '</nav>' +
+        '<div class="dr-foot">' +
+          '<button type="button" class="dr-install" id="drInstall" hidden>' +
+            '<span class="di-ic" aria-hidden="true">&#11015;&#65039;</span>' +
+            '<span class="di-tx"><b id="drInstallT">Install app</b><small id="drInstallS">Add to your home screen</small></span>' +
+          '</button>' +
+          '<div class="dr-copy">&copy; sql.ssl</div>' +
+        '</div>' +
+        '</div>' +
       '</aside>';
   }
 
@@ -1243,9 +1292,66 @@
     }
   }
 
-  // --- PWA: manifest + service worker + one-tap install banner ---------
+  // --- PWA: manifest + service worker + install entry points --------
   var deferredInstall = null;
   var pwaBar = null;
+
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+      /safari/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
+  }
+
+  function hideBar(persist) {
+    if (pwaBar && pwaBar.parentNode) pwaBar.parentNode.removeChild(pwaBar);
+    pwaBar = null;
+    if (persist) { try { localStorage.setItem('sc_pwa_dismissed', '1'); } catch (e) {} }
+  }
+
+  // The drawer always carries an Install entry — it must not depend on the
+  // floating banner being undismissed.
+  function paintInstallBtn() {
+    var b = $('#drInstall');
+    if (!b) return;
+    b.hidden = false;
+    var t = $('#drInstallT'), s = $('#drInstallS');
+    var installed = isStandalone();
+    b.classList.toggle('done', installed);
+    if (installed) {
+      if (t) t.textContent = 'App installed ✓';
+      if (s) s.textContent = 'Open it from your home screen';
+    } else {
+      if (t) t.textContent = 'Install app';
+      if (s) s.textContent = deferredInstall
+        ? 'One tap — add to your home screen'
+        : 'Browser menu → Add to Home screen';
+    }
+  }
+
+  App.pwaInstallSupported = function () { return !!deferredInstall; };
+  App.pwaInstalled = isStandalone;
+
+  App.installPWA = function () {
+    try {
+      if (isStandalone()) { App.toast('The shop app is already installed ✓', 'ok'); return; }
+      if (deferredInstall) {
+        var ev = deferredInstall;
+        deferredInstall = null;
+        try { ev.prompt(); } catch (e) {}
+        if (ev.userChoice && ev.userChoice.then) {
+          ev.userChoice.then(function () { hideBar(true); paintInstallBtn(); });
+        } else { hideBar(true); paintInstallBtn(); }
+        return;
+      }
+      App.toast(isIOS()
+        ? 'Tap Share ⬆ then “Add to Home Screen”'
+        : 'Open your browser menu → “Add to Home screen”', 'ok');
+    } catch (e) { console.warn('pwa install', e); }
+  };
 
   function initPWA() {
     try {
@@ -1281,22 +1387,14 @@
         });
       }
 
-      var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) &&
-        /safari/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
-      var standalone = window.navigator.standalone === true ||
-        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      var standalone = isStandalone();
 
       function dismissed() {
         try { return localStorage.getItem('sc_pwa_dismissed') === '1'; } catch (e) { return false; }
       }
-      function hideBar(persist) {
-        if (pwaBar && pwaBar.parentNode) pwaBar.parentNode.removeChild(pwaBar);
-        pwaBar = null;
-        if (persist) { try { localStorage.setItem('sc_pwa_dismissed', '1'); } catch (e) {} }
-      }
       function showBar() {
         if (pwaBar || dismissed() || standalone) return;
-        var manual = isIOS && !deferredInstall;
+        var manual = isIOS() && !deferredInstall;
         if (!deferredInstall && !manual) return;
         pwaBar = document.createElement('div');
         pwaBar.className = 'pwa-bar';
@@ -1308,30 +1406,50 @@
           '<button type="button" class="pwa-x" aria-label="Dismiss install banner">✕</button>';
         document.body.appendChild(pwaBar);
         pwaBar.querySelector('.pwa-x').addEventListener('click', function () { hideBar(true); });
-        pwaBar.querySelector('.pwa-go').addEventListener('click', function () {
-          if (deferredInstall) {
-            var ev = deferredInstall;
-            deferredInstall = null;
-            try { ev.prompt(); } catch (e) {}
-            if (ev.userChoice && ev.userChoice.then) {
-              ev.userChoice.then(function () { hideBar(true); });
-            } else { hideBar(true); }
-          } else {
-            App.toast('Tap Share ⬆ then “Add to Home Screen”', 'ok');
-            hideBar(true);
-          }
-        });
+        pwaBar.querySelector('.pwa-go').addEventListener('click', function () { App.installPWA(); });
       }
 
       window.addEventListener('beforeinstallprompt', function (e) {
         e.preventDefault();
         deferredInstall = e;
+        paintInstallBtn();
         showBar();
       });
-      window.addEventListener('appinstalled', function () { hideBar(true); deferredInstall = null; });
-      if (isIOS && !standalone) setTimeout(showBar, 2500);
+      window.addEventListener('appinstalled', function () {
+        hideBar(true);
+        deferredInstall = null;
+        paintInstallBtn();
+      });
+      if (isIOS() && !standalone) setTimeout(showBar, 2500);
+      paintInstallBtn();
+
+      var db = $('#drInstall');
+      if (db) db.addEventListener('click', function () { App.installPWA(); });
     } catch (e) { console.warn('pwa', e); }
   }
+
+  // Full-screen image viewer — the profile photo and any thumbnail can be
+  // opened at full size with one tap.
+  var imgView = null;
+  App.viewImage = function (src, alt) {
+    if (!src) { App.toast('No photo to show yet', 'err'); return; }
+    if (!imgView) {
+      imgView = document.createElement('div');
+      imgView.className = 'img-view';
+      imgView.setAttribute('role', 'dialog');
+      imgView.setAttribute('aria-label', 'Photo viewer');
+      imgView.innerHTML = '<img alt=""><button type="button" class="img-view-x" aria-label="Close photo">&#10005;</button>';
+      imgView.addEventListener('click', function () { imgView.classList.remove('on'); });
+      document.body.appendChild(imgView);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && imgView.classList.contains('on')) imgView.classList.remove('on');
+      });
+    }
+    var img = imgView.querySelector('img');
+    img.src = src;
+    img.alt = alt || 'Photo';
+    imgView.classList.add('on');
+  };
 
   App.boot = function () {
     var h = $('#siteHeader');

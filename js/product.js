@@ -109,14 +109,14 @@
 
     var bo = document.getElementById('btnOrder');
     if (bo) bo.addEventListener('click', function () {
-      App.Cart.add(p, 1);
+      if (!App.Cart.add(p, 1)) return;
       App.toast('Added to your basket ✓', 'ok');
       setTimeout(function () { location.href = 'order.html'; }, 350);
     });
 
     var ba = document.getElementById('btnAdd');
     if (ba) ba.addEventListener('click', function () {
-      App.Cart.add(p, 1);
+      if (!App.Cart.add(p, 1)) return;
       App.toast('Added to your basket ✓', 'ok');
     });
 
