@@ -75,7 +75,7 @@
     phone: '24312328',
     ownerPhone: '+965 99529389',
     whatsappNumber: '96599529389',
-    wamdNumber: '96599529389',
+    wamdNumber: '',
     wamdName: '',
     wamdLink: '',
     address: 'Jleeb Al-Shuyoukh, Kuwait',
@@ -943,14 +943,13 @@
           '<a id="drPhone" href="#"><span class="d-ico">&#128222;</span> <span></span></a>' +
           '<a id="drWa" href="#" target="_blank" rel="noopener"><span class="d-ico">&#128172;</span> <span>WhatsApp</span></a>' +
           '<a id="drMail" href="#" class="hide"><span class="d-ico">&#9993;&#65039;</span> <span></span></a>' +
-          '<a id="drIg" href="#" target="_blank" rel="noopener" class="hide"><span class="d-ico">&#128248;</span> <span>Instagram</span></a>' +
         '</nav>' +
         '<div class="dr-foot">' +
           '<button type="button" class="dr-install" id="drInstall" hidden>' +
             '<span class="di-ic" aria-hidden="true">&#11015;&#65039;</span>' +
             '<span class="di-tx"><b id="drInstallT">Install app</b><small id="drInstallS">Add to your home screen</small></span>' +
           '</button>' +
-          '<div class="dr-copy">&copy; sql.ssl</div>' +
+          '<div class="dr-copy">&copy; by Rizwan</div>' +
         '</div>' +
         '</div>' +
       '</aside>';
@@ -977,14 +976,10 @@
             '<a href="about.html"><span>&#8505;&#65039;</span> About Us</a>' +
             '<a href="privacy.html"><span>&#128274;</span> Privacy Policy</a>' +
             '<a href="#" id="ftTranslate"><span>&#127760;</span> Translate</a>' +
-            '<a href="#" id="ftIg" class="hide"><span>&#128248;</span> Instagram</a>' +
           '</div>' +
         '</div>' +
         '<div class="foot-bot">' +
-          '<span>&copy;sql.ssl 2026</span>' +
-          '<a class="ig-chip" id="ftIg2" href="#" target="_blank" rel="noopener">' +
-            '<svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.2 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.2-2.2-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.2-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2zm0 3.2A6.6 6.6 0 1 0 12 18.6 6.6 6.6 0 0 0 12 5.4zm0 10.9A4.3 4.3 0 1 1 12 7.7a4.3 4.3 0 0 1 0 8.6zm6.8-11.2a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>' +
-            'Instagram</a>' +
+          '<span>&copy; by Rizwan 2026</span>' +
         '</div>' +
       '</footer>';
   }
@@ -1033,11 +1028,6 @@
         setSpanText(drMail, 1, c.email);
       } else drMail.className = 'hide';
     }
-    var drIg = $('#drIg');
-    if (drIg) {
-      if (c.instagram) { drIg.href = c.instagram; drIg.className = ''; }
-      else drIg.className = 'hide';
-    }
 
     var ftPhone = $('#ftPhone');
     if (ftPhone) {
@@ -1060,13 +1050,6 @@
     var ftWa = $('#ftWa');
     if (ftWa) ftWa.href = 'https://wa.me/' + String(c.ownerPhone || c.whatsappNumber).replace(/[^0-9]/g, '');
     setText('#ftAddr', c.address + (c.addressAr ? ' • ' + c.addressAr : ''));
-
-    var ftIg = $('#ftIg'), ftIg2 = $('#ftIg2');
-    [ftIg, ftIg2].forEach(function (el) {
-      if (!el) return;
-      if (c.instagram) { el.href = c.instagram; el.className = el.id === 'ftIg2' ? 'ig-chip' : ''; }
-      else el.className = 'hide';
-    });
 
     renderDrawerCats();
     App.applyBranding();

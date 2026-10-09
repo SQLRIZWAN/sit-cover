@@ -97,7 +97,25 @@
       if (!small) { App.toast('Could not process that photo', 'err'); return; }
       pendingPic = small;
       render();
-      App.toast('Photo ready — tap “Save changes”', 'ok');
+      // Save the photo straight away so the DP is set even if the customer
+      // never taps "Save changes" for their other details.
+      setBusy(true, 'Saving photo…');
+      return AppAuth.save({ photo: small }).then(function () {
+        pendingPic = null;
+        setBusy(false, 'Saved ✓');
+        render();
+        App.toast('Profile photo updated ✓', 'ok');
+        setTimeout(function () { setBusy(false); }, 2000);
+      }).catch(function (e) {
+        setBusy(false);
+        render();
+        App.toast(
+          e && e.message && e.message !== 'offline'
+            ? 'Could not save the photo: ' + e.message
+            : 'Photo saved on this device — it will sync when you are online.',
+          e && e.message && e.message !== 'offline' ? 'err' : 'ok'
+        );
+      });
     }).catch(function (e) {
       App.toast(e && e.message ? e.message : 'Could not read that photo', 'err');
     });
