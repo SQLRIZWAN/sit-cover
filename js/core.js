@@ -93,7 +93,14 @@
       { maxKm: 20, fee: 2 },
       { maxKm: 30, fee: 3 },
       { maxKm: null, fee: 5 }
-    ]
+    ],
+    seo: {
+      baseUrl: 'https://fixandfit.store',
+      titleSuffix: '',
+      description: '',
+      keywords: '',
+      ogImage: ''
+    }
   };
 
   App.cfg = function () {
@@ -103,6 +110,137 @@
     for (k in App.defaults) out[k] = App.defaults[k];
     for (k in saved) if (saved[k] !== undefined && saved[k] !== null && saved[k] !== '') out[k] = saved[k];
     return out;
+  };
+
+  /* ---------- SEO: live meta / canonical / OG / JSON-LD ---------- */
+  App.seoCfg = function () {
+    var saved = (App.state.config && App.state.config.seo) || {};
+    var out = {};
+    var k;
+    for (k in App.defaults.seo) out[k] = App.defaults.seo[k];
+    for (k in saved) if (saved[k] !== undefined && saved[k] !== null && saved[k] !== '') out[k] = saved[k];
+    return out;
+  };
+
+  function metaSet(kind, key, val) {
+    if (val == null || val === '') return;
+    var el = document.head.querySelector('meta[' + kind + '="' + key + '"]');
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute(kind, key);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', String(val));
+  }
+
+  function linkSet(rel, href) {
+    if (!href) return;
+    var el = document.head.querySelector('link[rel="' + rel + '"]');
+    if (!el) {
+      el = document.createElement('link');
+      el.setAttribute('rel', rel);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('href', href);
+  }
+
+  function sitePath() {
+    var p = location.pathname || '/';
+    p = p.replace(/^\/+/, '');
+    p = p.replace(/^sit-cover\//, '');
+    if (!p || p === 'index.html') return '';
+    return p;
+  }
+
+  function pageUrl(seo, path) {
+    var base = String(seo.baseUrl || 'https://fixandfit.store').replace(/\/+$/, '');
+    var p = (path != null ? path : sitePath()).replace(/^\/+/, '');
+    return p ? base + '/' + p : base + '/';
+  }
+
+  function titleWithSuffix(title, suffix) {
+    if (!suffix) return title;
+    if (title.indexOf(suffix) !== -1) return title;
+    return title + ' ' + suffix;
+  }
+
+  function firstLine(text) {
+    var t = String(text || '').replace(/\s+/g, ' ').trim();
+    return t.length > 160 ? t.slice(0, 157) + '…' : t;
+  }
+
+  App.applySEO = function (opts) {
+    opts = opts || {};
+    var cfg = App.cfg();
+    var seo = App.seoCfg();
+    var url = pageUrl(seo, opts.path);
+    var title = opts.title || document.title || cfg.shopName || 'Shop';
+    title = titleWithSuffix(title, seo.titleSuffix || '');
+    var desc = opts.description || seo.description ||
+      (document.head.querySelector('meta[name="description"]') || {}).content || '';
+    var keywords = seo.keywords || (document.head.querySelector('meta[name="keywords"]') || {}).content || '';
+    var img = seo.ogImage || url.replace(/\/[^/]*$/, '') + '/assets/shop-banner.webp';
+    if (img.indexOf('http') !== 0) img = pageUrl(seo, 'assets/' + img.replace(/^\/+/, ''));
+    if (!seo.ogImage) img = pageUrl(seo, 'assets/shop-banner.webp');
+
+    document.title = title;
+    metaSet('name', 'description', firstLine(desc));
+    metaSet('name', 'keywords', keywords);
+    linkSet('canonical', url);
+    metaSet('property', 'og:type', 'website');
+    metaSet('property', 'og:site_name', seo.titleSuffix ? cfg.shopName : 'Fix and Fit Store');
+    metaSet('property', 'og:title', title);
+    metaSet('property', 'og:description', firstLine(desc));
+    metaSet('property', 'og:url', url);
+    metaSet('property', 'og:image', img);
+    metaSet('name', 'twitter:card', 'summary_large_image');
+    metaSet('name', 'twitter:title', title);
+    metaSet('name', 'twitter:description', firstLine(desc));
+    metaSet('name', 'twitter:image', img);
+    metaSet('name', 'geo.position', cfg.shopLat + ';' + cfg.shopLng);
+    metaSet('name', 'ICBM', cfg.shopLat + ', ' + cfg.shopLng);
+    applyJsonLd(cfg, seo, url);
+    return { url: url, title: title, description: desc };
+  };
+
+  function applyJsonLd(cfg, seo, url) {
+    var el = document.querySelector('script[type="application/ld+json"]');
+    if (!el) return;
+    var d;
+    try { d = JSON.parse(el.textContent); } catch (e) { return; }
+    if (!d || d['@type'] !== 'Store') return;
+    if (cfg.shopName) d.name = cfg.shopName;
+    d.url = url;
+    if (cfg.phone) d.telephone = '+965' + String(cfg.phone).replace(/\D/g, '');
+    if (cfg.address) {
+      d.address = d.address || { '@type': 'PostalAddress', 'addressCountry': 'KW' };
+      d.address.streetAddress = cfg.address;
+    }
+    if (cfg.shopLat != null && cfg.shopLng != null) {
+      d.geo = { '@type': 'GeoCoordinates', latitude: Number(cfg.shopLat), longitude: Number(cfg.shopLng) };
+    }
+    var logo = pageUrl(seo, 'assets/shop-logo.webp');
+    d.logo = logo;
+    if (!d.image || !d.image.length) d.image = [logo];
+    var wa = String(cfg.whatsappNumber || '').replace(/\D/g, '');
+    if (wa) d.sameAs = ['https://wa.me/' + (wa.indexOf('965') === 0 ? wa : '965' + wa)];
+    try { el.textContent = JSON.stringify(d); } catch (e) {}
+  }
+
+  App.applySEOProduct = function (p) {
+    if (!p) return;
+    var cfg = App.cfg();
+    var seo = App.seoCfg();
+    var bits = [];
+    if (p.description) bits.push(String(p.description).replace(/\s+/g, ' ').trim());
+    if (cfg.address) bits.push('Fix and Fit store — ' + cfg.address + '. Cash on delivery, 24-hour delivery.');
+    var q = p.id != null ? 'product.html?id=' + encodeURIComponent(p.id) : 'product.html';
+    App.applySEO({
+      title: (p.name || 'Product') + ' — ' + cfg.shopName,
+      description: firstLine(bits.join(' ')),
+      path: q
+    });
+    metaSet('property', 'og:type', 'product');
   };
 
   App.on = function (key, fn) {
@@ -1155,7 +1293,8 @@
       // Subscribers (WAMD page, checkout payment step, …) must run even if a
       // piece of chrome on this page is missing — never let paint kill them.
       fire('config');
-      try { applyConfigUI(); } catch (e) { console.error('configUI', e); }
+    try { applyConfigUI(); } catch (e) { console.error('configUI', e); }
+    try { App.applySEO(); } catch (e) { console.error('seo', e); }
     }, function (e) { console.warn('config', e); showOffline('Cannot read live data: ' + (e.message || ''), true); });
 
     DB.ref('categories').on('value', function (s) {
@@ -1462,6 +1601,7 @@
     if (f) f.innerHTML = footerHTML();
 
     try { applyConfigUI(); } catch (e) { console.error('configUI', e); }
+    try { App.applySEO(); } catch (e) { console.error('seo', e); }
     initDrawer();
     initTranslate();
     initPreloader();

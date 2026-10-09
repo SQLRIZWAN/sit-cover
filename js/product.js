@@ -71,7 +71,7 @@
     var out = p.inStock === false;
     var cn = catName(p.categoryId);
 
-    document.title = p.name + ' — ' + App.cfg().shopName;
+    try { App.applySEOProduct(p); } catch (e) { document.title = p.name + ' — ' + App.cfg().shopName; }
 
     root.innerHTML =
       '<div class="crumb"><a href="index.html">Home</a> <span>›</span>' +

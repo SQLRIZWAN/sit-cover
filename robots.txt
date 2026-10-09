@@ -1,0 +1,8 @@
+# Fix and Fit Store — https://fixandfit.store
+User-agent: *
+Allow: /
+
+# Admin panel is not for search engines
+Disallow: /sit-cover-admin/
+
+Sitemap: https://fixandfit.store/sitemap.xml
