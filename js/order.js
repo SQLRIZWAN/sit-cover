@@ -9,6 +9,7 @@
     distance: null,
     payment: 'cod',
     ss: null,
+    done: false,
     buyerLoaded: false
   };
 
@@ -17,6 +18,33 @@
   function el(id) { return document.getElementById(id); }
 
   function feeNow() { return App.deliveryFee(S.distance); }
+
+  // ---- Login gate ---------------------------------------------------------
+  // An order can only be placed by a signed-in account: it is what ties the
+  // basket, the order and the delivery tracker together.
+  function signedIn() {
+    return !!(window.AppAuth && AppAuth.profile && AppAuth.profile());
+  }
+
+  function applyGate() {
+    var gate = el('loginGate'), flow = el('orderFlow'), done = el('doneView');
+    if (!gate) return;
+    var yes = signedIn();
+    gate.hidden = yes;
+    gate.style.display = yes ? 'none' : 'block';
+    if (flow) flow.style.display = yes ? '' : 'none';
+    if (done) done.style.display = (yes && S.done) ? 'block' : 'none';
+  }
+
+  function fillFromProfile() {
+    var p = (window.AppAuth && AppAuth.profile && AppAuth.profile()) || null;
+    if (!p) return;
+    if (el('fName') && !el('fName').value.trim() && p.name) el('fName').value = p.name;
+    if (el('fPhone') && !el('fPhone').value.trim() && p.phone) el('fPhone').value = p.phone;
+    if (!S.customer.name && p.name) S.customer.name = p.name;
+    if (!S.customer.phone && p.phone) S.customer.phone = p.phone;
+    saveBuyer();
+  }
 
   function selectedItems() {
     return App.Cart.list().filter(function (x) { return S.sel[x.id]; });
@@ -27,12 +55,12 @@
   }
 
   function saveDraft() {
-    try { localStorage.setItem('sc_order_draft', JSON.stringify({ sel: S.sel, customer: S.customer, distance: S.distance })); } catch (e) {}
+    try { localStorage.setItem(App.scopedKey('sc_order_draft'), JSON.stringify({ sel: S.sel, customer: S.customer, distance: S.distance })); } catch (e) {}
   }
 
   function restoreDraft() {
     try {
-      var d = JSON.parse(localStorage.getItem('sc_order_draft') || 'null');
+      var d = JSON.parse(localStorage.getItem(App.scopedKey('sc_order_draft')) || 'null');
       if (!d) return;
       S.sel = d.sel || {};
       S.selInit = true;
@@ -159,7 +187,7 @@
     if (S.buyerLoaded) return;
     S.buyerLoaded = true;
     try {
-      var b = JSON.parse(localStorage.getItem('sc_buyer') || '{}');
+      var b = JSON.parse(localStorage.getItem(App.scopedKey('sc_buyer')) || '{}');
       if (b.name) { S.customer.name = b.name; el('fName').value = b.name; }
       if (b.phone) { S.customer.phone = b.phone; el('fPhone').value = b.phone; }
     } catch (e) {}
@@ -167,12 +195,13 @@
 
   function saveBuyer() {
     try {
-      localStorage.setItem('sc_buyer', JSON.stringify({ name: S.customer.name, phone: S.customer.phone }));
+      localStorage.setItem(App.scopedKey('sc_buyer'), JSON.stringify({ name: S.customer.name, phone: S.customer.phone }));
     } catch (e) {}
   }
 
   function renderDetails() {
     loadBuyer();
+    fillFromProfile();
     updateLocInfo();
   }
 
@@ -501,6 +530,11 @@
 
   function doSubmit() {
     var btn = el('btnSubmit');
+    if (!signedIn()) {
+      applyGate();
+      App.toast('Please sign in with Google to place your order', 'err');
+      return;
+    }
     if (!window.App || !App.DB) {
       App.toast('Still connecting to the shop — please wait a second and try again', 'err');
       return;
@@ -520,6 +554,7 @@
     var sub = subtotal();
     var fee = feeNow();
     var total = sub + fee;
+    var me = (window.AppAuth && AppAuth.profile && AppAuth.profile()) || {};
 
     var order = {
       items: sel.map(function (x) {
@@ -543,6 +578,10 @@
         lat: S.customer.lat,
         lng: S.customer.lng
       },
+      // The account this order belongs to — what "My Orders" matches on.
+      uid: me.uid || '',
+      email: me.email || '',
+      uname: me.name || S.customer.name || '',
       paymentScreenshot: S.ss ? { inline: 1 } : null,
       status: 'new',
       whatsappSent: false,
@@ -650,6 +689,7 @@
   function showDone(id, total, order, cfg) {
     var done = el('doneView');
     var flow = el('orderFlow');
+    S.done = true;
     if (flow) flow.style.display = 'none';
     if (done) done.style.display = 'block';
 
@@ -816,7 +856,19 @@
       if (S.step === 3) renderPayment();
     });
 
+    var gBtn = el('lgGoogle');
+    if (gBtn) gBtn.addEventListener('click', function () {
+      if (window.AppAuth) AppAuth.signIn(location.pathname + location.search);
+    });
+    var why = el('lgWhy'), whyText = el('lgWhyText');
+    if (why && whyText) why.addEventListener('click', function () { whyText.hidden = !whyText.hidden; });
+
+    if (window.AppAuth) App.on('auth', function () { applyGate(); fillFromProfile(); });
+
     restoreDraft();
+    applyGate();
+    fillFromProfile();
+
     var qp = new URLSearchParams(location.search);
     if (qp.get('payment') === 'wamd' || qp.get('paid') === '1') {
       S.payment = 'wamd';

@@ -274,16 +274,43 @@
 
   App.cartKey = 'sc_cart';
 
+  // The basket follows the signed-in account: one key per Google uid, plus a
+  // copy in the database so the same basket shows up on every device.
+  App.cartKeyFor = function (uid) { return uid ? 'sc_cart_' + uid : 'sc_cart'; };
+  App.currentUid = function () {
+    try {
+      var p = window.AppAuth && AppAuth.profile && AppAuth.profile();
+      return (p && p.uid) || null;
+    } catch (e) { return null; }
+  };
+  App.cartKeyNow = function () { return App.cartKeyFor(App.currentUid()); };
+  // Same idea for every other checkout scrap we keep on the device.
+  App.scopedKey = function (base) {
+    var uid = App.currentUid();
+    return uid ? base + '_' + uid : base;
+  };
+
+  function readCartKey(key) {
+    try {
+      var v = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+  function writeCartKey(key, arr) {
+    try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+  }
+
+  var cartPushTimer = null;
+
   App.Cart = {
     list: function () {
-      try {
-        var v = JSON.parse(localStorage.getItem(App.cartKey) || '[]');
-        return Array.isArray(v) ? v : [];
-      } catch (e) { return []; }
+      return readCartKey(App.cartKeyNow());
     },
     save: function (arr) {
-      localStorage.setItem(App.cartKey, JSON.stringify(arr));
+      writeCartKey(App.cartKeyNow(), arr);
       App.updateCartBadge();
+      App.Cart.pushToCloud();
+      App.fire('cart');
     },
     add: function (p, qty) {
       var arr = App.Cart.list();
@@ -346,6 +373,85 @@
       });
       if (changed) App.Cart.save(arr);
     }
+  };
+
+  App.Cart.pushToCloud = function () {
+    var uid = App.currentUid();
+    if (!uid || !App.DB || typeof firebase === 'undefined') return;
+    clearTimeout(cartPushTimer);
+    cartPushTimer = setTimeout(function () {
+      var nowUid = App.currentUid();
+      if (!nowUid || !App.DB) return;
+      App.DB.ref('stats/carts/' + nowUid).set({
+        items: App.Cart.list(),
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      }).catch(function () {});
+    }, 700);
+  };
+
+  App.Cart.pullFromCloud = function () {
+    var uid = App.currentUid();
+    if (!uid || !App.DB) return Promise.resolve();
+    return App.DB.ref('stats/carts/' + uid).once('value').then(function (s) {
+      if (App.currentUid() !== uid) return;
+      var v = s.val();
+      var raw = v && v.items;
+      var items = null;
+      if (Array.isArray(raw)) items = raw;
+      else if (raw && typeof raw === 'object') {
+        items = Object.keys(raw).sort().map(function (k) { return raw[k]; });
+      }
+      if (!v) {
+        // Nothing stored for this account yet — publish whatever was picked up
+        // before signing in.
+        if (App.Cart.list().length) App.Cart.pushToCloud();
+        return;
+      }
+      if (!items) {
+        // Stored with no items: the basket was emptied somewhere else.
+        writeCartKey(App.cartKeyFor(uid), []);
+        App.updateCartBadge();
+        App.fire('cart');
+        return;
+      }
+      writeCartKey(App.cartKeyFor(uid), items);
+      App.Cart.repair();
+      App.updateCartBadge();
+      App.fire('cart');
+    }).catch(function () {});
+  };
+
+  // Move the basket between the guest key and the signed-in account key so a
+  // customer never loses what they picked up before signing in.
+  var lastCartUid = null;
+  function rekeyCart() {
+    var uid = App.currentUid();
+    if (uid === lastCartUid) return;
+    lastCartUid = uid;
+    if (uid) {
+      var mine = readCartKey(App.cartKeyFor(uid));
+      var guest = readCartKey('sc_cart');
+      if (guest.length && !mine.length) writeCartKey(App.cartKeyFor(uid), guest);
+      ['sc_buyer', 'sc_order_draft'].forEach(function (base) {
+        var mineV = null;
+        try { mineV = localStorage.getItem(base + '_' + uid); } catch (e) {}
+        if (mineV) return;
+        var guestV = null;
+        try { guestV = localStorage.getItem(base); } catch (e) {}
+        if (guestV) { try { localStorage.setItem(base + '_' + uid, guestV); } catch (e) {} }
+      });
+      if (uid && App.DB) App.Cart.pullFromCloud();
+    }
+    App.Cart.repair();
+    App.updateCartBadge();
+    App.fire('cart');
+  }
+
+  App.orderStatus = function (o) {
+    var s = (o && o.status) ? String(o.status) : '';
+    if (!s || s === 'pending' || s === 'awaiting') return 'new';
+    if (s === 'shipped') return 'shipped';
+    return s;
   };
 
   App.updateCartBadge = function () {
@@ -585,6 +691,7 @@
         '</div>' +
         '<nav>' +
           '<a href="profile.html" id="drAcct"><span class="d-ico" id="drAcctI">&#128100;</span> <span id="drAcctT">Sign in</span></a>' +
+          '<a href="myorders.html" id="drOrders"><span class="d-ico">&#128230;</span> <span>My Orders</span><span class="dr-badge hide" id="drOrdersN">0</span></a>' +
           '<a href="index.html">&#127968; Home</a>' +
           '<a href="about.html">&#8505;&#65039; About Us</a>' +
           '<a href="privacy.html">&#128274; Privacy Policy</a>' +
@@ -944,7 +1051,36 @@
       fire('products');
     });
 
+    // Live feed of recent orders — powers the "My Orders" badge, the tracker
+    // page and the assistant. Rows are filtered to the signed-in account.
+    DB.ref('orders').orderByChild('createdAt').limitToLast(200).on('value', function (s) {
+      var all = [];
+      s.forEach(function (ch) {
+        var v = ch.val() || {};
+        if (!v.id) v.id = ch.key;
+        all.push(v);
+      });
+      App.state.allOrders = all;
+      App.state.myOrders = myOrdersFrom(all);
+      paintMyOrdersBadge();
+      fire('myOrders');
+    }, function (e) { console.warn('orders', e); });
+
     trackVisitor(DB);
+  }
+
+  function myOrdersFrom(all) {
+    var uid = App.currentUid();
+    if (!uid) return [];
+    return (all || []).filter(function (o) { return !!o.uid && o.uid === uid; });
+  }
+
+  function paintMyOrdersBadge() {
+    var el = $('#drOrdersN');
+    if (!el) return;
+    var n = (App.state.myOrders || []).length;
+    el.textContent = n > 99 ? '99+' : n;
+    el.className = 'dr-badge' + (n ? '' : ' hide');
   }
 
   function trackVisitor(DB) {
@@ -990,18 +1126,50 @@
 
     loadFbFile('firebase-app-compat.js', function (e1) {
       if (e1) { showOffline('Cannot load Firebase — check your internet or ad-blocker.', true); return; }
-      loadFbFile('firebase-database-compat.js', function (e2) {
-        if (e2) { showOffline('Cannot load Firebase database module.', true); return; }
-        try {
-          firebase.initializeApp(cfg);
-          connectDB();
-          fire('fbReady');
-        } catch (e) {
-          console.error(e);
-          showOffline('Firebase init error: ' + e.message, true);
-        }
+      loadFbFile('firebase-auth-compat.js', function () {
+        loadFbFile('firebase-database-compat.js', function (e2) {
+          if (e2) { showOffline('Cannot load Firebase database module.', true); return; }
+          try {
+            firebase.initializeApp(cfg);
+            // Anonymous sign-in is what unlocks read access to this customer's
+            // own orders (the database rules require auth != null).
+            startAnonAuth(function () { connectDB(); fire('fbReady'); });
+          } catch (e) {
+            console.error(e);
+            showOffline('Firebase init error: ' + e.message, true);
+          }
+        });
       });
     });
+  }
+
+  function startAnonAuth(done) {
+    var finished = false;
+    function finish() {
+      if (finished) return;
+      finished = true;
+      done();
+    }
+    try {
+      if (!firebase.auth) { finish(); return; }
+      var a = firebase.auth();
+      if (!a.signInAnonymously) { finish(); return; }
+      a.onAuthStateChanged(function (u) {
+        if (u) { App.fbUid = u.uid; App.fbAnon = !!u.isAnonymous; finish(); }
+      }, function () { finish(); });
+      a.signInAnonymously().then(function (cred) {
+        if (cred && cred.user) { App.fbUid = cred.user.uid; App.fbAnon = !!cred.user.isAnonymous; }
+        finish();
+      }).catch(function (e) {
+        App.fbAuthError = (e && (e.message || e.code)) || 'sign-in failed';
+        console.warn('anonymous sign-in', App.fbAuthError);
+        setTimeout(finish, 300);
+      });
+      setTimeout(finish, 4000);
+    } catch (e) {
+      App.fbAuthError = e && e.message;
+      finish();
+    }
   }
 
   App.boot = function () {
@@ -1023,11 +1191,19 @@
     App.updateCartBadge();
     paintAuth(App.state.auth);
     App.on('auth', paintAuth);
+    App.on('auth', function () {
+      rekeyCart();
+      if (App.state.allOrders) {
+        App.state.myOrders = myOrdersFrom(App.state.allOrders);
+        paintMyOrdersBadge();
+        fire('myOrders');
+      }
+    });
     loadFirebase();
 
     App.on('products', function () { App.Cart.repair(); App.updateCartBadge(); });
     App.on('config', function () { App.applyBranding(); });
-    App.on('fbReady', function () {});
+    App.on('fbReady', function () { if (App.currentUid()) App.Cart.pullFromCloud(); });
   };
 
   if (document.readyState === 'loading') {

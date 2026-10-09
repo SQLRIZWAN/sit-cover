@@ -36,6 +36,35 @@
   <div id="siteHeader"></div>
 
   <main>
+    <div class="wrap sect" id="loginGate" hidden>
+      <div class="card lg-card">
+        <div class="lg-hero">
+          <span class="lg-hero-ic" aria-hidden="true">
+            <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.5 2.5 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.4-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.4z"/><path fill="#FBBC05" d="M10.4 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6.1a24 24 0 0 0 0 21.6l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.5 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+          </span>
+          <h1>Sign in to place your order</h1>
+          <p class="lead">Your basket is saved. Sign in with Google so we can keep your order safe, show you live delivery status and message you when it is on the way.</p>
+        </div>
+
+        <button type="button" class="btn btn-pri g-btn" id="lgGoogle">
+          <svg class="g-ico" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.5 2.5 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.4-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.4z"/><path fill="#FBBC05" d="M10.4 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6.1a24 24 0 0 0 0 21.6l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.5 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <ul class="lg-perks">
+          <li><span aria-hidden="true">🧾</span><span class="lg-txt">Your orders are saved to your account — see them any time under <b>My Orders</b>.</span></li>
+          <li><span aria-hidden="true">🚚</span> Live delivery tracking with the date and time the shop promises.</li>
+          <li><span aria-hidden="true">🔒</span> No password. Google only shares your name, email and photo.</li>
+        </ul>
+
+        <div class="lg-links">
+          <button type="button" class="pf-link" id="lgWhy">Why do I need to sign in?</button>
+          <a class="pf-link" href="index.html">← Keep browsing</a>
+        </div>
+        <p class="pf-note" id="lgWhyText" hidden>Signing in links your order to a real account, so it cannot be lost or mixed up with someone else's, and it unlocks live order tracking on your device and any other device you sign in from.</p>
+      </div>
+    </div>
+
     <div class="wrap sect" id="orderFlow">
       <div class="stepper">
         <div class="stp on" data-step="1"><div class="dot">1</div><small>Basket</small></div>
