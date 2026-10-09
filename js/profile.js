@@ -19,7 +19,9 @@
 
   function avatarHTML(photo, initial) {
     if (photo) {
-      return '<img src="' + App.esc(photo) + '" alt="" data-fb="' + App.esc(initial || '?') + '">';
+      // no-referrer stops Google's avatar CDN from rejecting the request on
+      // some hosts, which is what left customers staring at their initial.
+      return '<img src="' + App.esc(photo) + '" alt="" referrerpolicy="no-referrer" data-fb="' + App.esc(initial || '?') + '">';
     }
     return '<span class="pf-av-ph">' + App.esc(initial || '👤') + '</span>';
   }

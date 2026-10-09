@@ -149,6 +149,17 @@
             <label class="loc-lab">📍 Delivery point <span class="opt">(optional — auto-calculates distance &amp; delivery fee)</span></label>
             <button type="button" class="btn btn-ghost" id="locBtn">📍 Use my location</button>
             <div class="loc-info" id="locInfo"><b>No location selected yet.</b> Tap “Use my location” so we can calculate the distance and the exact delivery fee automatically.</div>
+            <details class="loc-manual" id="locManual">
+              <summary>Can't use GPS? Enter the map coordinates yourself</summary>
+              <div class="loc-manual-in">
+                <div class="lm-row">
+                  <div><label for="locLat">Latitude</label><input id="locLat" type="text" inputmode="decimal" autocomplete="off" placeholder="29.2844"></div>
+                  <div><label for="locLng">Longitude</label><input id="locLng" type="text" inputmode="decimal" autocomplete="off" placeholder="47.9656"></div>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" id="locApply">Use these coordinates</button>
+                <div class="loc-tip">How to get them: open Google Maps on your phone, long-press your building, then copy the two numbers that appear.</div>
+              </div>
+            </details>
           </div>
 
           <div class="order-nav">

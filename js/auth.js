@@ -76,11 +76,15 @@
 
   function userFromClaims(claims) {
     var md = (claims && claims.user_metadata) || {};
+    // Google can hand the avatar over in several places depending on how the
+    // OAuth consent screen is set up — check all of them before giving up.
+    var pic = String(md.picture || md.avatar_url || md.photo_url ||
+      claims.picture || claims.avatar_url || (claims.identity_data && (claims.identity_data.picture || claims.identity_data.avatar_url)) || '').trim();
     return {
       uid: String(claims.sub || md.sub || md.provider_id || '').trim(),
       email: String(claims.email || md.email || '').trim(),
-      name: String(md.full_name || md.name || claims.email || '').trim(),
-      photo: String(md.picture || md.avatar_url || '').trim(),
+      name: String(md.full_name || md.name || claims.name || claims.email || '').trim(),
+      photo: pic,
       provider: String(((claims.app_metadata && claims.app_metadata.provider) || 'google'))
     };
   }
@@ -162,6 +166,11 @@
             safeSet(PKEY, JSON.stringify({
               uid: u.uid, name: u.name, photo: u.photo, phone: '', info: ''
             }));
+          } else if (!prof.photo && u.photo) {
+            // An older sign-in saved the account without the Google avatar —
+            // fill it in now so the profile and the admin panel show a DP.
+            prof.photo = u.photo;
+            safeSet(PKEY, JSON.stringify(prof));
           }
           App.state.auth = readSession();
           if (App.DB) publish(App.state.auth, first);
@@ -265,11 +274,13 @@
     if (!s) return null;
     var p = readProfile();
     if (!p || p.uid !== s.uid) p = { uid: s.uid, name: '', photo: '', phone: '', info: '' };
+    // Never lose the Google avatar just because the stored copy is empty.
+    var photo = p.photo || s.photo || s.gphoto || '';
     return {
       uid: s.uid,
       email: s.email || '',
       name: p.name || s.name || '',
-      photo: p.photo || s.photo || '',
+      photo: photo,
       googlePhoto: s.gphoto || '',
       phone: p.phone || '',
       info: p.info || '',

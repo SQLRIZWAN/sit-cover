@@ -420,12 +420,36 @@
     });
   }
 
+  function openManual() {
+    var d = el('locManual');
+    if (d) { try { d.open = true; } catch (e) { d.setAttribute('open', ''); } }
+  }
+
+  // A calm, non-alarming notice inside the delivery-point box. The red toast
+  // used to be the only feedback and it looked like the order itself failed.
+  function locNote(msg) {
+    var box = el('locInfo');
+    if (!box) return;
+    box.classList.add('warn');
+    box.innerHTML = '<b>📍 Location unavailable.</b> ' + App.esc(msg) +
+      '<br>You can still continue — the delivery fee will be the normal area rate.';
+  }
+
   function useMyLoc() {
     var btn = el('locBtn');
+    var box = el('locInfo');
+    if (box) box.classList.remove('warn');
+
     if (!navigator.geolocation) {
-      App.toast('Location is not supported on this device', 'err');
+      locNote('This device does not support GPS.');
+      openManual();
       return;
     }
+
+    // Chrome and Firefox refuse geolocation on plain http. Say so in plain
+    // words instead of leaking the browser's own error string.
+    var insecure = !window.isSecureContext;
+
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Locating…'; }
     navigator.geolocation.getCurrentPosition(function (pos) {
       if (btn) { btn.disabled = false; btn.textContent = '📍 Use my location'; }
@@ -433,7 +457,23 @@
       App.toast('Location found ✓', 'ok');
     }, function (err) {
       if (btn) { btn.disabled = false; btn.textContent = '📍 Use my location'; }
-      App.toast('Could not get location (' + (err && err.message ? err.message : 'permission denied') + ')', 'err');
+      var code = err && err.code;
+      var msg;
+      if (insecure) {
+        msg = 'this page is open on a non-secure (http) link, and phones only give GPS on https. ' +
+          'Once the shop is opened as https://fixandfit.store the button will work.';
+      } else if (code === 1) {
+        msg = 'you blocked location for this site. Tap the padlock in the address bar, allow Location, then try again.';
+      } else if (code === 2) {
+        msg = 'the phone could not get a GPS fix. Move near a window and try again.';
+      } else if (code === 3) {
+        msg = 'it took too long to get a fix. Try again, or enter the coordinates below.';
+      } else {
+        msg = 'the phone did not return a location.';
+      }
+      locNote(msg);
+      openManual();
+      App.toast('Location unavailable — see the box above');
     }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
   }
 
@@ -890,6 +930,30 @@
 
     var locBtn = el('locBtn');
     if (locBtn) locBtn.addEventListener('click', useMyLoc);
+    var locApply = el('locApply');
+    if (locApply) locApply.addEventListener('click', function () {
+      var la = parseFloat(String(el('locLat') && el('locLat').value || '').replace(/[^\d.\-]/g, ''));
+      var ln = parseFloat(String(el('locLng') && el('locLng').value || '').replace(/[^\d.\-]/g, ''));
+      if (!isFinite(la) || !isFinite(ln) || Math.abs(la) > 90 || Math.abs(ln) > 180) {
+        App.toast('Enter valid coordinates, e.g. 29.2844 and 47.9656', 'err');
+        return;
+      }
+      var box = el('locInfo');
+      if (box) box.classList.remove('warn');
+      setLoc(la, ln, null, true);
+      App.toast('Delivery point saved ✓', 'ok');
+    });
+    // On plain http the browser will refuse GPS every time — say so up front
+    // instead of making the customer tap a button that can only fail.
+    if (!window.isSecureContext && navigator.geolocation) {
+      var box0 = el('locInfo');
+      if (box0) {
+        box0.classList.add('warn');
+        box0.innerHTML = '<b>📍 GPS is off on this link.</b> Phones only give location on https, so open the shop as ' +
+          '<b>https://fixandfit.store</b> and this button will work. Until then tap “Can\'t use GPS?” below — ' +
+          'entering the map coordinates works fine and gives the exact delivery fee.';
+      }
+    }
 
     var s2n = el('s2Next');
     if (s2n) s2n.addEventListener('click', function () { if (validateStep2()) goStep(3); });

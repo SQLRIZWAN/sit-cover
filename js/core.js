@@ -1105,7 +1105,7 @@
     var av = $('#acctAv');
     if (av) {
       av.innerHTML = (u && u.photo)
-        ? '<img class="acct-img" src="' + App.esc(u.photo) + '" alt="" data-fb="' + App.esc((u.name || u.email || '?').charAt(0).toUpperCase()) + '">'
+        ? '<img class="acct-img" src="' + App.esc(u.photo) + '" alt="" referrerpolicy="no-referrer" data-fb="' + App.esc((u.name || u.email || '?').charAt(0).toUpperCase()) + '">'
         : '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.7"/><path d="M4.9 20.2a7.3 7.3 0 0 1 14.2 0"/></svg>';
     }
     var btn = $('#acctBtn');
@@ -1463,11 +1463,18 @@
     if (installed) {
       if (t) t.textContent = 'App installed ✓';
       if (s) s.textContent = 'Open it from your home screen';
+    } else if (!window.isSecureContext) {
+      // Phones only allow a real install on https. Say so instead of sending
+      // the customer to a browser menu that only makes a bookmark.
+      if (t) t.textContent = 'Install needs the https link';
+      if (s) s.textContent = 'Open https://fixandfit.store, then install';
+      b.classList.add('blocked');
     } else {
       if (t) t.textContent = 'Install app';
       if (s) s.textContent = deferredInstall
         ? 'One tap — add to your home screen'
         : 'Browser menu → Add to Home screen';
+      b.classList.remove('blocked');
     }
   }
 
@@ -1482,8 +1489,15 @@
         deferredInstall = null;
         try { ev.prompt(); } catch (e) {}
         if (ev.userChoice && ev.userChoice.then) {
-          ev.userChoice.then(function () { hideBar(true); paintInstallBtn(); });
+          ev.userChoice.then(function (res) {
+            if (res && res.outcome === 'accepted') App.toast('Installing… it will appear on your home screen ✓', 'ok');
+            hideBar(true); paintInstallBtn();
+          });
         } else { hideBar(true); paintInstallBtn(); }
+        return;
+      }
+      if (!window.isSecureContext) {
+        App.toast('This page is on http — phones only install apps from https. Open https://fixandfit.store', 'err');
         return;
       }
       App.toast(isIOS()
@@ -1533,6 +1547,7 @@
       }
       function showBar() {
         if (pwaBar || dismissed() || standalone) return;
+        if (!window.isSecureContext) return;   // no real install on http
         var manual = isIOS() && !deferredInstall;
         if (!deferredInstall && !manual) return;
         pwaBar = document.createElement('div');
@@ -1558,6 +1573,7 @@
         hideBar(true);
         deferredInstall = null;
         paintInstallBtn();
+        try { App.toast('Shop app installed ✓ Look for it on your home screen', 'ok'); } catch (e) {}
       });
       if (isIOS() && !standalone) setTimeout(showBar, 2500);
       paintInstallBtn();
@@ -1577,7 +1593,7 @@
       imgView.className = 'img-view';
       imgView.setAttribute('role', 'dialog');
       imgView.setAttribute('aria-label', 'Photo viewer');
-      imgView.innerHTML = '<img alt=""><button type="button" class="img-view-x" aria-label="Close photo">&#10005;</button>';
+      imgView.innerHTML = '<img alt="" referrerpolicy="no-referrer"><button type="button" class="img-view-x" aria-label="Close photo">&#10005;</button>';
       imgView.addEventListener('click', function () { imgView.classList.remove('on'); });
       document.body.appendChild(imgView);
       document.addEventListener('keydown', function (e) {
