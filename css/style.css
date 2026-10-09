@@ -481,7 +481,7 @@ main { flex: 1 0 auto; width: 100%; }
 }
 .p-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px -18px rgba(15, 23, 42, .45); }
 .p-media { position: relative; aspect-ratio: 4/3; background: #eef2f7; overflow: hidden; }
-.p-media img, .p-media video { width: 100%; height: 100%; object-fit: contain; background: #f1f5f9; }
+.p-media img, .p-media video { width: 100%; height: 100%; object-fit: cover; }
 .p-play {
   position: absolute;
   inset: 0;
@@ -948,7 +948,7 @@ main { flex: 1 0 auto; width: 100%; }
   cursor: pointer;
   overflow: hidden;
 }
-.ai-prod .ap-img img { width: 100%; height: 100%; object-fit: contain; background: #f1f5f9; display: block; }
+.ai-prod .ap-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ai-prod .ap-hint {
   position: absolute;
   right: 8px;
@@ -2167,3 +2167,43 @@ html.ai-lock, html.ai-lock body { overflow: hidden; }
 .g-btn:hover, .g-btn:focus-visible { border-color: var(--gold, #d97706); box-shadow: 0 12px 26px -14px rgba(217, 119, 6, .55); transform: translateY(-1px); }
 .g-btn:active { transform: translateY(0) scale(.995); }
 .g-btn .g-ico { width: 22px; height: 22px; }
+
+/* ---------- Round 7c: compact order cards + filter tiles ---------- */
+.mo-card { padding: 13px; border-radius: 14px; margin-bottom: 12px; }
+.mo-id-code { font-size: 15px; }
+.mo-date { font-size: 11.8px; }
+.mo-card-h { margin-bottom: 9px; }
+.mo-track { margin-bottom: 11px; }
+.mo-step small { font-size: 10px; }
+.mo-meta { font-size: 12px; gap: 6px 12px; margin-bottom: 10px; }
+.mo-eta { padding: 9px 11px; margin-bottom: 10px; }
+.mo-toggle { min-height: 40px; font-size: 13px; }
+.mo-actions { margin-top: 10px; gap: 8px; }
+.mo-actions .btn { min-height: 42px; }
+
+/* The summary tiles are now tappable filters. */
+.mo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 14px; }
+.mo-stat {
+  -webkit-appearance: none; appearance: none;
+  background: #fff; border: 1.5px solid var(--line, #e5e7eb); border-radius: 13px;
+  padding: 11px 8px; text-align: center; cursor: pointer; font: inherit;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+.mo-stat b { display: block; font-size: 21px; color: var(--navy); line-height: 1.2; }
+.mo-stat span { font-size: 11px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: var(--muted); }
+.mo-stat:hover { border-color: var(--gold, #d97706); }
+.mo-stat.on { border-color: var(--gold, #d97706); background: #fffbeb; }
+.mo-stat.on b { color: var(--gold-d, #b45309); }
+.mo-stat:active { transform: scale(.98); }
+
+/* Two side-by-side location buttons (GPS + AI fallback). */
+.loc-btns { display: flex; flex-wrap: wrap; gap: 9px; margin: 8px 0 10px; }
+.loc-btns .btn { flex: 1 1 180px; min-height: 46px; }
+
+/* Clearer selected state on payment options + calmer WAMD box. */
+.pay-opt { transition: border-color .16s ease, background .16s ease, box-shadow .16s ease; }
+.pay-opt.on { border-color: var(--gold); background: #fffbeb; box-shadow: 0 0 0 2px rgba(217,119,6,.18); }
+.pay-opt .tick { opacity: 0; transition: opacity .16s ease; }
+.pay-opt.on .tick { opacity: 1; }
+.wamd-box { border-radius: 14px; }
+.order-nav .btn { min-height: 50px; }

@@ -102,10 +102,14 @@
     }
     var cur = STATUS[st].step;
     var pct = (cur / (STEPS.length - 1)) * 100;
+    // A delivered order is fully complete: every step — including the last —
+    // must show a green tick, not the "in progress" gold number.
+    var allDone = st === 'delivered';
     return '<div class="mo-track"><div class="mo-track-bar"><i class="fill" style="width:' + pct + '%"></i></div>' +
       '<div class="mo-steps">' + STEPS.map(function (s, i) {
-        var cls = i < cur ? 'done' : (i === cur ? 'on' : 'off');
-        return '<div class="mo-step ' + cls + '"><span class="dot">' + (i < cur ? '✓' : (i + 1)) + '</span><small>' + esc(s.label) + '</small></div>';
+        var done = allDone || i < cur;
+        var cls = done ? 'done' : (i === cur ? 'on' : 'off');
+        return '<div class="mo-step ' + cls + '"><span class="dot">' + (done ? '✓' : (i + 1)) + '</span><small>' + esc(s.label) + '</small></div>';
       }).join('') + '</div></div>';
   }
 
@@ -157,6 +161,14 @@
     return 'https://wa.me/' + num + '?text=' + encodeURIComponent('Hi, I am checking on my order.');
   }
 
+  var query = '';
+  var filter = 'all';   // 'all' | 'active' | 'delivered' — set by the summary tiles
+
+  function isActive(o) {
+    var s = statusOf(o);
+    return s === 'new' || s === 'confirmed' || s === 'shipped';
+  }
+
   function render() {
     var p = profile();
     var out = el('moOut'), inn = el('moIn');
@@ -184,10 +196,12 @@
     mine.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
 
     if (el('moTotal')) el('moTotal').textContent = mine.length;
-    if (el('moActive')) el('moActive').textContent = mine.filter(function (o) {
-      var s = statusOf(o); return s === 'new' || s === 'confirmed' || s === 'shipped';
-    }).length;
+    if (el('moActive')) el('moActive').textContent = mine.filter(isActive).length;
     if (el('moDone')) el('moDone').textContent = mine.filter(function (o) { return statusOf(o) === 'delivered'; }).length;
+
+    // Opening this page means the customer has SEEN their orders — clear the
+    // "My Orders" nav badge so the red dot never gets stuck.
+    if (App.markOrdersSeen) App.markOrdersSeen();
 
     var list = el('moList');
     if (!list) return;
@@ -217,7 +231,20 @@
       return;
     }
 
-    list.innerHTML = mine.map(orderHTML).join('');
+    var shown = mine.filter(function (o) {
+      if (filter === 'active') return isActive(o);
+      if (filter === 'delivered') return statusOf(o) === 'delivered';
+      return true;
+    });
+
+    if (!shown.length) {
+      list.innerHTML = '<div class="empty-box mo-empty"><div class="big">🔍</div>' +
+        '<b>Nothing in this filter</b>' +
+        'Tap “Orders” to see every order again.</div>';
+      return;
+    }
+
+    list.innerHTML = shown.map(orderHTML).join('');
 
     Array.prototype.forEach.call(list.querySelectorAll('.mo-toggle'), function (b) {
       b.addEventListener('click', function () {
@@ -254,6 +281,21 @@
     if (btn) btn.addEventListener('click', function () {
       if (window.AppAuth) AppAuth.signIn(location.pathname + location.search);
     });
+
+    // The summary tiles double as filters: tap In progress / Delivered to
+    // narrow the list to that product state.
+    var stats = el('moStats');
+    if (stats) {
+      stats.addEventListener('click', function (e) {
+        var t = e.target.closest('.mo-stat');
+        if (!t) return;
+        filter = t.getAttribute('data-filter') || 'all';
+        Array.prototype.forEach.call(stats.querySelectorAll('.mo-stat'), function (s) {
+          s.classList.toggle('on', s === t);
+        });
+        render();
+      });
+    }
 
     render();
     App.on('auth', render);

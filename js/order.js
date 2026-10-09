@@ -474,7 +474,40 @@
       locNote(msg);
       openManual();
       App.toast('Location unavailable — see the box above');
+      // GPS failed — fall back to AI so the customer is not stuck: try to
+      // place the address they already typed and lock the delivery point.
+      aiLocate(true);
     }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+  }
+
+  // Turn the typed address (area / block / street / building) into a delivery
+  // point when GPS is unavailable. Used as the fallback so "Continue" can still
+  // lock a location and calculate the distance-based delivery fee.
+  function aiLocate(auto) {
+    var addr = addressFromForm();
+    if (!addr || !App.aiGeocode) {
+      if (!auto) App.toast('Type your area first, then we can find it', 'err');
+      return Promise.resolve(false);
+    }
+    var btn = el('locBtn');
+    var aiBtn = el('locAi');
+    if (btn) { btn.disabled = true; }
+    if (aiBtn) { aiBtn.disabled = true; aiBtn.textContent = '⏳ Finding your area…'; }
+    if (auto) locNote('GPS is off, so we are using your typed address to find the delivery point…');
+    return App.aiGeocode(addr).then(function (g) {
+      setLoc(g.lat, g.lng, null, false);
+      locNote('We found your area from the address you typed ✓ — you can Continue now.');
+      App.toast('Delivery point locked ✓', 'ok');
+      return true;
+    }).catch(function () {
+      if (auto) locNote('We could not place that address automatically. Tap “Use my location”, or open the box below and paste the map coordinates.');
+      else App.toast('Could not find that area — try GPS or enter coordinates', 'err');
+      return false;
+    }).then(function (ok) {
+      if (btn) { btn.disabled = false; }
+      if (aiBtn) { aiBtn.disabled = false; aiBtn.textContent = '✨ Find my area automatically'; }
+      return ok;
+    });
   }
 
   function validateStep2() {
@@ -739,6 +772,15 @@
         App.DB.ref('order_shots/' + id).set(S.ss.url).catch(function () {});
       }
 
+      // Auto-save the phone the customer typed during checkout into their
+      // profile, so next time they never have to fill it in again.
+      try {
+        var prof = window.AppAuth && AppAuth.profile && AppAuth.profile();
+        if (S.customer.phone && prof && !String(prof.phone || '').trim() && AppAuth.save) {
+          AppAuth.save({ phone: S.customer.phone });
+        }
+      } catch (e) {}
+
       saveBuyer();
       App.Cart.removeIds(sel.map(function (x) { return x.id; }));
       showDone(id, total, order, cfg);
@@ -930,6 +972,8 @@
 
     var locBtn = el('locBtn');
     if (locBtn) locBtn.addEventListener('click', useMyLoc);
+    var locAi = el('locAi');
+    if (locAi) locAi.addEventListener('click', function () { aiLocate(false); });
     var locApply = el('locApply');
     if (locApply) locApply.addEventListener('click', function () {
       var la = parseFloat(String(el('locLat') && el('locLat').value || '').replace(/[^\d.\-]/g, ''));
@@ -956,7 +1000,22 @@
     }
 
     var s2n = el('s2Next');
-    if (s2n) s2n.addEventListener('click', function () { if (validateStep2()) goStep(3); });
+    if (s2n) s2n.addEventListener('click', function () {
+      if (!validateStep2()) return;
+      // Continue stays locked until a delivery point (lat/lng) is set. If the
+      // customer has not used GPS, try to lock it from the typed address via
+      // AI first; only move on once the location is actually fixed.
+      if (S.customer.lat != null && S.customer.lng != null) { goStep(3); return; }
+      s2n.disabled = true;
+      var was = s2n.textContent;
+      s2n.textContent = '⏳ Finding your area…';
+      aiLocate(false).then(function (ok) {
+        s2n.disabled = false;
+        s2n.textContent = was;
+        if (ok && S.customer.lat != null && S.customer.lng != null) goStep(3);
+        else App.toast('Set your delivery point to continue (GPS or coordinates)', 'err');
+      });
+    });
     var s2b = el('s2Back');
     if (s2b) s2b.addEventListener('click', function () { goStep(1); });
 

@@ -840,6 +840,29 @@
     } catch (e) {}
   }
 
+  // Convert a typed address (area / block / street in Kuwait) to an approximate
+  // lat/lng so the delivery distance can still be estimated when GPS is off.
+  // Used by the order flow as a fallback so "Continue" can lock a location.
+  App.aiGeocode = function (address) {
+    var addr = String(address || '').trim();
+    if (!addr) return Promise.reject(new Error('empty address'));
+    var parts = [{ text: 'Delivery address: ' + addr }];
+    var sys = 'You are a geocoding helper for a delivery shop in Kuwait (Jleeb Al-Shuyoukh area, Kuwait City). ' +
+      'Given a delivery address, reply with ONLY a compact JSON object: {"lat":<number>,"lng":<number>}. ' +
+      'Pick the best approximate point inside Kuwait. Do not add any other words. ' +
+      'If the address is empty or unusable, reply exactly {"lat":null,"lng":null}.';
+    return callGemini(parts, sys).then(function (txt) {
+      var m = String(txt).match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('no geo');
+      var j = JSON.parse(m[0]);
+      var lat = Number(j.lat), lng = Number(j.lng);
+      if (!isFinite(lat) || !isFinite(lng)) throw new Error('bad geo');
+      // Keep the point inside Kuwait (with a small border margin).
+      if (lat < 28.5 || lat > 30.5 || lng < 46.5 || lng > 48.5) throw new Error('out of kuwait');
+      return { lat: lat, lng: lng };
+    });
+  };
+
   // Product cards live in the transcript — repaint them when the catalogue or
   // a stock flag changes so the answer never goes stale.
   App.on('products', function () { if (messages.length) renderMsgs(); });

@@ -1317,13 +1317,36 @@
     return (all || []).filter(function (o) { return !!o.uid && o.uid === uid; });
   }
 
+  // The nav badge is a NOTIFICATION, not a running total: it counts orders the
+  // customer has not opened yet, or whose status changed since they last
+  // looked. Opening "My Orders" marks everything seen, so the red dot clears.
+  function ordersSeenKey() { return 'sc_orders_seen_' + (App.currentUid() || 'anon'); }
+  function readOrdersSeen() {
+    try { return JSON.parse(localStorage.getItem(ordersSeenKey()) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function unseenOrderCount() {
+    var seen = readOrdersSeen();
+    return (App.state.myOrders || []).reduce(function (n, o) {
+      var id = String(o.id || '');
+      var st = String(o.status || 'new');
+      return n + (seen[id] !== st ? 1 : 0);
+    }, 0);
+  }
   function paintMyOrdersBadge() {
     var el = $('#drOrdersN');
     if (!el) return;
-    var n = (App.state.myOrders || []).length;
+    var n = unseenOrderCount();
     el.textContent = n > 99 ? '99+' : n;
     el.className = 'dr-badge' + (n ? '' : ' hide');
   }
+  App.markOrdersSeen = function () {
+    var seen = readOrdersSeen();
+    (App.state.myOrders || []).forEach(function (o) {
+      seen[String(o.id || '')] = String(o.status || 'new');
+    });
+    try { localStorage.setItem(ordersSeenKey(), JSON.stringify(seen)); } catch (e) {}
+    paintMyOrdersBadge();
+  };
 
   function trackVisitor(DB) {
     if (App.cfg().visitorCountingEnabled !== true) return;

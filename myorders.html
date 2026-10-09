@@ -96,10 +96,10 @@
           <a class="btn btn-ghost btn-sm" href="profile.html">Edit profile</a>
         </div>
 
-        <div class="mo-stats">
-          <div class="mo-stat"><b id="moTotal">0</b><span>Orders</span></div>
-          <div class="mo-stat"><b id="moActive">0</b><span>In progress</span></div>
-          <div class="mo-stat"><b id="moDone">0</b><span>Delivered</span></div>
+        <div class="mo-stats" id="moStats">
+          <button type="button" class="mo-stat on" data-filter="all"><b id="moTotal">0</b><span>Orders</span></button>
+          <button type="button" class="mo-stat" data-filter="active"><b id="moActive">0</b><span>In progress</span></button>
+          <button type="button" class="mo-stat" data-filter="delivered"><b id="moDone">0</b><span>Delivered</span></button>
         </div>
 
         <div class="mo-err" id="moErr" hidden></div>
