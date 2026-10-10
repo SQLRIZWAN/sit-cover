@@ -723,7 +723,9 @@
 
   function customerKey(phone) {
     var k = String(phone).replace(/\D/g, '');
-    return k || ('p' + Date.now().toString(36));
+    var fid = App.fbUid || '';
+    if (!k || !fid) return '';
+    return k + '_' + fid;
   }
 
   function doSubmit() {
@@ -780,6 +782,7 @@
       },
       // The account this order belongs to — what "My Orders" matches on.
       uid: me.uid || '',
+      fid: App.fbUid || '',
       email: me.email || '',
       uname: me.name || S.customer.name || '',
       paymentScreenshot: S.ss ? { inline: 1 } : null,
@@ -792,7 +795,10 @@
     var id = ref.key;
     order.id = id;
 
-    var savePromise = ref.set(order);
+    var myIds = App.fbUid
+      ? App.DB.ref('stats/myorders/' + App.fbUid + '/' + id).set(true).catch(function () {})
+      : Promise.resolve();
+    var savePromise = Promise.all([ref.set(order), myIds]);
     var saveTimeout = new Promise(function (_, reject) {
       setTimeout(function () { reject(new Error('The connection is taking too long. Please check internet and try again.')); }, 15000);
     });
@@ -802,27 +808,27 @@
       var ts = Date.now();
       var rev = total;
 
-      App.DB.ref('stats/daily/' + App.todayKey()).transaction(function (cur) {
-        return {
-          orders: ((cur && cur.orders) || 0) + 1,
-          revenue: Math.round((((cur && cur.revenue) || 0) + rev) * 1000) / 1000
-        };
-      });
-      App.DB.ref('stats/allTime').transaction(function (cur) {
-        return {
-          orders: ((cur && cur.orders) || 0) + 1,
-          revenue: Math.round((((cur && cur.revenue) || 0) + rev) * 1000) / 1000
-        };
-      });
-      App.DB.ref('stats/customers/' + customerKey(S.customer.phone)).transaction(function (cur) {
-        return {
+      var SV = firebase.database.ServerValue;
+      var addRev = Math.round(rev * 1000) / 1000;
+      App.DB.ref('stats/daily/' + App.todayKey()).update({
+        orders: SV.increment(1),
+        revenue: SV.increment(addRev)
+      }).catch(function () {});
+      App.DB.ref('stats/allTime').update({
+        orders: SV.increment(1),
+        revenue: SV.increment(addRev)
+      }).catch(function () {});
+      var ck = customerKey(S.customer.phone);
+      if (ck) {
+        App.DB.ref('stats/customers/' + ck).update({
+          fid: App.fbUid || '',
           name: S.customer.name,
           phone: S.customer.phone,
-          orders: ((cur && cur.orders) || 0) + 1,
-          revenue: Math.round((((cur && cur.revenue) || 0) + rev) * 1000) / 1000,
+          orders: SV.increment(1),
+          revenue: SV.increment(addRev),
           lastOrder: ts
-        };
-      });
+        }).catch(function () {});
+      }
 
       if (S.ss && S.ss.url) {
         App.DB.ref('order_shots/' + id).set(S.ss.url).catch(function () {});

@@ -541,47 +541,31 @@
     return found;
   }
 
-  // Read-only pull from the shop database. Nothing here can ever write.
+  // Read-only pull for the assistant. Everything here is the SIGNED-IN
+  // account's own basket and own orders — no shop-wide stats, no other
+  // customers, no admin paths. Nothing here can ever write.
   function loadContext(text) {
     var tok = lookupTokens(text);
-    var allFromState = App.state.allOrders;
-    var jobs = [
-      dbRead('stats/daily/' + (App.todayKey ? App.todayKey() : '')),
-      dbRead('stats/allTime'),
-      allFromState ? Promise.resolve(allFromState) : dbRead('orders', 6000)
-    ];
-    if (tok.phone) jobs.push(dbRead('stats/customers'));
 
     function fallback() {
       return { me: profileSnapshot(), cart: [], mine: [], hits: [], who: null, daily: null, allTime: null, token: tok };
     }
 
-    return Promise.all(jobs).then(function (r) {
-      var daily = r[0] || null;
-      var allTime = r[1] || null;
-      var orders = r[2] || [];
+    return Promise.resolve(App.state.allOrders || []).then(function (orders) {
       if (!Array.isArray(orders)) orders = [];
-      var customers = r[3] || null;
 
       var me = profileSnapshot();
-      var mine = me && me.uid ? orders.filter(function (o) { return o.uid === me.uid; }) : [];
+      var mine = orders;
       var hits = matchOrders(orders, tok);
-      var who = null;
-      if (tok.phone && customers) {
-        for (var k in customers) {
-          var digits = String(k).replace(/\D/g, '');
-          if (digits && digits.slice(-8) === tok.phone.slice(-8)) { who = customers[k]; break; }
-        }
-      }
 
       return {
         me: me,
         cart: App.Cart.list(),
         mine: mine.map(compactOrder),
         hits: hits.map(compactOrder),
-        who: who,
-        daily: daily,
-        allTime: allTime,
+        who: null,
+        daily: null,
+        allTime: null,
         token: tok
       };
     }).catch(fallback);
@@ -763,6 +747,7 @@
       var snap = profileSnapshot();
       App.DB.ref('aiScans').push({
         uid: (snap && snap.uid) || '',
+        fid: App.fbUid || '',
         imageUrl: imageUrl || '',
         publicId: publicId || '',
         query: query || '',

@@ -1361,28 +1361,82 @@
       fire('products');
     });
 
-    // Live feed of recent orders — powers the "My Orders" badge, the tracker
-    // page and the assistant. Rows are filtered to the signed-in account.
-    DB.ref('orders').orderByChild('createdAt').limitToLast(200).on('value', function (s) {
-      var all = [];
-      s.forEach(function (ch) {
-        var v = ch.val() || {};
-        if (!v.id) v.id = ch.key;
-        all.push(v);
-      });
-      App.state.allOrders = all;
-      App.state.myOrders = myOrdersFrom(all);
-      paintMyOrdersBadge();
-      fire('myOrders');
-    }, function (e) { console.warn('orders', e); });
+    // Live feed of the customer's OWN orders — powers the "My Orders" badge,
+    // the tracker page and the assistant. The rules deny the whole orders
+    // collection to shoppers, so we keep a tiny id list per account
+    // (stats/myorders/{fid}) and attach one listener per order id.
+    watchMyOrderIds(DB);
 
     trackVisitor(DB);
   }
 
+  var myWatch = { idsRef: null, idsCb: null, rows: [], seen: {}, vals: {}, fid: '' };
+
+  function detachMyOrderIds() {
+    if (myWatch.idsRef && myWatch.idsCb) myWatch.idsRef.off('value', myWatch.idsCb);
+    myWatch.idsRef = null;
+    myWatch.idsCb = null;
+    myWatch.rows.forEach(function (r) { r.ref.off('value', r.cb); });
+    myWatch.rows = [];
+    myWatch.seen = {};
+    myWatch.vals = {};
+    myWatch.fid = '';
+  }
+
+  function publishMyOrders() {
+    var all = [];
+    for (var k in myWatch.vals) if (myWatch.vals[k]) all.push(myWatch.vals[k]);
+    all.sort(function (a, b) { return (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0); });
+    App.state.allOrders = all;
+    App.state.myOrders = myOrdersFrom(all);
+    paintMyOrdersBadge();
+    fire('myOrders');
+  }
+
+  function attachMyOrder(id) {
+    if (!id || myWatch.seen[id]) return;
+    myWatch.seen[id] = 1;
+    var ref = App.DB.ref('orders/' + id);
+    var cb = function (s) {
+      var v = s.val();
+      if (!v) delete myWatch.vals[id];
+      else { if (!v.id) v.id = id; myWatch.vals[id] = v; }
+      publishMyOrders();
+    };
+    myWatch.rows.push({ ref: ref, cb: cb });
+    ref.on('value', cb, function (e) { console.warn('order', id, e); });
+  }
+
+  function syncMyOrders() {
+    if (!App.DB || App.fbUid === myWatch.fid) return;
+    watchMyOrderIds(App.DB);
+  }
+
+  function watchMyOrderIds(DB) {
+    detachMyOrderIds();
+    App.state.allOrders = [];
+    App.state.myOrders = [];
+    var fid = App.fbUid || '';
+    if (!fid) { paintMyOrdersBadge(); fire('myOrders'); return; }
+    var cb = function (s) {
+      var ids = [];
+      s.forEach(function (ch) { if (ch.key) ids.push(ch.key); });
+      ids.slice(-60).forEach(attachMyOrder);
+      publishMyOrders();
+    };
+    myWatch.fid = fid;
+    myWatch.idsRef = DB.ref('stats/myorders/' + fid);
+    myWatch.idsCb = cb;
+    myWatch.idsRef.on('value', cb, function (e) { console.warn('myorders', e); });
+  }
+
   function myOrdersFrom(all) {
     var uid = App.currentUid();
-    if (!uid) return [];
-    return (all || []).filter(function (o) { return !!o.uid && o.uid === uid; });
+    var fid = App.fbUid || '';
+    if (!uid && !fid) return [];
+    return (all || []).filter(function (o) {
+      return (!!uid && o.uid === uid) || (!!fid && o.fid === fid);
+    });
   }
 
   // The nav badge is a NOTIFICATION, not a running total: it counts orders the
@@ -1476,6 +1530,15 @@
     });
   }
 
+  function setFbUid(u) {
+    var uid = (u && u.uid) || '';
+    var anon = !!(u && u.isAnonymous);
+    if (App.fbUid === uid && App.fbAnon === anon) return;
+    App.fbUid = uid;
+    App.fbAnon = anon;
+    fire('fbauth');
+  }
+
   function startAnonAuth(done) {
     var finished = false;
     function finish() {
@@ -1488,10 +1551,10 @@
       var a = firebase.auth();
       if (!a.signInAnonymously) { finish(); return; }
       a.onAuthStateChanged(function (u) {
-        if (u) { App.fbUid = u.uid; App.fbAnon = !!u.isAnonymous; finish(); }
+        if (u) { setFbUid(u); finish(); }
       }, function () { finish(); });
       a.signInAnonymously().then(function (cred) {
-        if (cred && cred.user) { App.fbUid = cred.user.uid; App.fbAnon = !!cred.user.isAnonymous; }
+        if (cred && cred.user) setFbUid(cred.user);
         finish();
       }).catch(function (e) {
         App.fbAuthError = (e && (e.message || e.code)) || 'sign-in failed';
@@ -1702,6 +1765,7 @@
     App.on('auth', paintAuth);
     App.on('auth', function () {
       rekeyCart();
+      syncMyOrders();
       if (App.state.allOrders) {
         App.state.myOrders = myOrdersFrom(App.state.allOrders);
         paintMyOrdersBadge();
@@ -1712,7 +1776,8 @@
 
     App.on('products', function () { App.Cart.repair(); App.Cart.syncPrices(); App.updateCartBadge(); });
     App.on('config', function () { App.applyBranding(); });
-    App.on('fbReady', function () { if (App.currentUid()) App.Cart.pullFromCloud(); });
+    App.on('fbReady', function () { syncMyOrders(); if (App.currentUid()) App.Cart.pullFromCloud(); });
+    App.on('fbauth', syncMyOrders);
     initPWA();
   };
 

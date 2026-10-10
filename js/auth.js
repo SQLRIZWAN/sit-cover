@@ -234,6 +234,7 @@
     if (prof && prof.uid !== u.uid) prof = null;
     var rec = {
       uid: u.uid,
+      fid: (window.App && App.fbUid) || '',
       email: u.email || (prof && prof.email) || '',
       name: (prof && prof.name) || u.name || '',
       photo: (prof && prof.photo) || u.photo || '',
@@ -308,6 +309,7 @@
     var seen = parseJSON(safeGet(CKEY)) || {};
     var rec = {
       uid: s.uid,
+      fid: (window.App && App.fbUid) || '',
       email: s.email,
       name: p.name,
       photo: p.photo,

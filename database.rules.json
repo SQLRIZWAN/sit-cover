@@ -2,29 +2,109 @@
   "rules": {
     ".read": false,
     ".write": false,
-    "config": { ".read": true, ".write": "auth != null" },
-    "categories": { ".read": true, ".write": "auth != null" },
-    "products": { ".read": true, ".write": "auth != null" },
-    "media": { ".read": true, ".write": "auth != null" },
-    "order_shots": {
-      ".read": "auth != null",
-      "$shotId": {
-        ".write": "auth != null || (!data.exists() && newData.isString())"
-      }
+    "config": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
+    },
+    "categories": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
+    },
+    "products": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
+    },
+    "media": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
     },
     "orders": {
-      ".read": "auth != null",
-      ".indexOn": ["createdAt", "status"],
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+      ".indexOn": [
+        "createdAt",
+        "status",
+        "uid",
+        "fid"
+      ],
       "$orderId": {
-        ".write": "auth != null || (!data.exists() && newData.child('status').val() == 'new' && newData.child('total').val() != null)"
+        ".read": "auth != null && (!data.exists() || data.child('fid').val() == auth.uid)",
+        ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (!data.exists() && newData.hasChildren(['status','total','subtotal','items','customer','uid','fid','createdAt']) && newData.child('status').val() == 'new' && newData.child('total').isNumber() && newData.child('total').val() > 0 && newData.child('subtotal').isNumber() && newData.child('subtotal').val() >= 0 && newData.child('items').hasChildren() && newData.child('customer').child('name').isString() && newData.child('customer').child('phone').isString() && newData.child('uid').isString() && newData.child('fid').isString() && (newData.child('fid').val() == '' || (auth != null && newData.child('fid').val() == auth.uid)) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 3600000)",
+        "whatsappSent": {
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && data.parent().child('fid').val() == auth.uid && newData.isBoolean() && newData.val() == true)"
+        },
+        "items": {
+          ".validate": "!data.exists() || (auth != null && auth.token.firebase.sign_in_provider == 'password')"
+        },
+        "customer": {
+          ".validate": "!data.exists() || (auth != null && auth.token.firebase.sign_in_provider == 'password')"
+        }
       }
     },
-    "stats": { ".read": "auth != null", ".write": true, "visitors": { ".read": true } },
-    "aiScans": { ".read": "auth != null", ".write": true }
-    ,"reports": {
+    "order_shots": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+      "$shotId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && !data.exists() && newData.isString() && newData.val().length <= 40000)"
+      }
+    },
+    "reports": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
       "$reportId": {
-        ".write": "!data.exists() && newData.child('message').isString() && newData.child('message').val().length <= 2000",
-        ".read": "auth != null"
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (!data.exists() && newData.hasChildren(['message','createdAt']) && newData.child('message').isString() && newData.child('message').val().length <= 2000 && newData.child('createdAt').isNumber())"
+      }
+    },
+    "aiScans": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+      ".indexOn": [
+        "createdAt"
+      ],
+      "$scanId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && !data.exists() && newData.hasChildren(['fid','createdAt']) && newData.child('fid').isString() && newData.child('fid').val() == auth.uid && newData.child('fid').val() != '')"
+      }
+    },
+    "stats": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+      "visitors": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "myorders": {
+        "$fid": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && $fid == auth.uid)",
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && $fid == auth.uid)"
+        }
+      },
+      "users": {
+        ".indexOn": [
+          "lastLoginAt"
+        ],
+        "$uKey": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && (!newData.hasChildren(['fid']) || newData.child('fid').val() == auth.uid) && (!data.hasChildren(['fid']) || data.child('fid').val() == auth.uid))"
+        }
+      },
+      "carts": {
+        "$cKey": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && (!data.hasChildren(['fid']) || data.child('fid').val() == auth.uid))",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && newData.hasChildren(['fid']) && newData.child('fid').val() == auth.uid && (!data.hasChildren(['fid']) || data.child('fid').val() == auth.uid))"
+        }
+      },
+      "customers": {
+        ".indexOn": [
+          "lastOrder"
+        ],
+        "$ck": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && newData.hasChildren(['fid','name','phone']) && newData.child('fid').isString() && newData.child('fid').val() != '' && newData.child('fid').val() == auth.uid && newData.child('name').isString() && newData.child('phone').isString() && (!data.hasChildren(['fid']) || data.child('fid').val() == auth.uid))"
+        }
+      },
+      "daily": {
+        "$date": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || auth != null && newData.hasChildren(['orders','revenue']) && newData.child('orders').isNumber() && newData.child('revenue').isNumber() && newData.child('orders').val() >= 0 && newData.child('orders').val() <= 100000 && newData.child('revenue').val() >= 0 && newData.child('revenue').val() <= 100000000 && (!data.exists() || (data.child('orders').isNumber() && data.child('revenue').isNumber() && newData.child('orders').val() >= data.child('orders').val() && newData.child('revenue').val() >= data.child('revenue').val()))"
+        }
+      },
+      "allTime": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+        ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || auth != null && newData.hasChildren(['orders','revenue']) && newData.child('orders').isNumber() && newData.child('revenue').isNumber() && newData.child('orders').val() >= 0 && newData.child('orders').val() <= 100000 && newData.child('revenue').val() >= 0 && newData.child('revenue').val() <= 100000000 && (!data.exists() || (data.child('orders').isNumber() && data.child('revenue').isNumber() && newData.child('orders').val() >= data.child('orders').val() && newData.child('revenue').val() >= data.child('revenue').val()))"
       }
     }
   }
