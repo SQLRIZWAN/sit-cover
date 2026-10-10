@@ -196,8 +196,12 @@
     mine.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
 
     if (el('moTotal')) el('moTotal').textContent = mine.length;
-    if (el('moActive')) el('moActive').textContent = mine.filter(isActive).length;
+    var activeN = mine.filter(isActive).length;
+    if (el('moActive')) el('moActive').textContent = activeN;
     if (el('moDone')) el('moDone').textContent = mine.filter(function (o) { return statusOf(o) === 'delivered'; }).length;
+    // A soft red dot on the "In progress" tile while something is still moving.
+    var dot = document.querySelector('#moStats .mo-dot');
+    if (dot) dot.hidden = activeN === 0;
 
     // Opening this page means the customer has SEEN their orders — clear the
     // "My Orders" nav badge so the red dot never gets stuck.

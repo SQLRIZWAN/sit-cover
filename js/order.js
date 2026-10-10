@@ -149,7 +149,7 @@
     });
     if (n === 1) renderCart();
     if (n === 2) { renderDetails(); }
-    if (n === 3) renderPayment();
+    if (n === 4) renderPayment();
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }
 
@@ -608,6 +608,8 @@
     el('rName').textContent = S.customer.name;
     el('rPhone').textContent = S.customer.phone;
     el('rAddr').textContent = S.customer.address || (S.customer.lat != null ? 'GPS: ' + S.customer.lat.toFixed(5) + ', ' + S.customer.lng.toFixed(5) : 'Not set');
+    var rPay = el('rPay');
+    if (rPay) rPay.textContent = S.payment === 'wamd' ? 'WAMD (prepaid)' : 'Cash on Delivery';
 
     var cfg = App.cfg();
     el('wamdName').textContent = cfg.wamdName || cfg.shopName || 'Shop account';
@@ -1090,22 +1092,17 @@
 
     Array.prototype.forEach.call(document.querySelectorAll('.pay-opt'), function (o) {
       o.addEventListener('click', function () {
-        // WAMD stays on this page: step 3 already carries the account details
-        // and the screenshot upload. Navigating to wamd.html used to bounce the
-        // customer back to the payment step, losing their scroll position.
-        var m = o.getAttribute('data-pay');
-        setPay(m);
-        if (m === 'wamd') {
-          var w = el('wamdBox');
-          if (w && w.scrollIntoView) {
-            setTimeout(function () {
-              try { w.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
-              catch (e) { try { w.scrollIntoView(); } catch (e2) {} }
-            }, 60);
-          }
-        }
+        // Choosing a method opens the next step: the WAMD details, the final
+        // summary and the submit button all live on step 4.
+        setPay(o.getAttribute('data-pay'));
+        goStep(4);
       });
     });
+
+    var s3n = el('s3Next');
+    if (s3n) s3n.addEventListener('click', function () { goStep(4); });
+    var s4b = el('s4Back');
+    if (s4b) s4b.addEventListener('click', function () { goStep(3); });
 
     var ssBox = el('ssBox'), ssFile = el('ssFile');
     if (ssBox && ssFile) {
@@ -1130,15 +1127,13 @@
     // WAMD account name / number live in the database — re-render the payment
     // step whenever the admin changes them.
     App.on('config', function () {
-      if (S.step === 3) renderPayment();
+      if (S.step === 4) renderPayment();
     });
 
     var gBtn = el('lgGoogle');
     if (gBtn) gBtn.addEventListener('click', function () {
       if (window.AppAuth) AppAuth.signIn(location.pathname + location.search);
     });
-    var why = el('lgWhy'), whyText = el('lgWhyText');
-    if (why && whyText) why.addEventListener('click', function () { whyText.hidden = !whyText.hidden; });
 
     if (window.AppAuth) App.on('auth', function () { applyGate(); fillFromProfile(); });
 
