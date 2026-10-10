@@ -106,7 +106,8 @@
           <div style="margin-top:16px"><a class="btn btn-pri" href="index.html">Browse Products</a></div>
         </div>
         <div class="panel" id="cartPanel">
-          <h3><span class="n">1</span> Your basket (tokri)</h3>
+          <h3><span class="n">1</span> Your basket</h3>
+          <p class="step-help">Tick the products you want to buy. Change any quantity here — the total updates as you go.</p>
           <div id="cartList"></div>
           <div style="margin-top:14px">
             <div class="tot-row"><span id="cSelCount">0 selected</span></div>
@@ -123,6 +124,7 @@
       <div class="ostep" data-step="2">
         <div class="panel">
           <h3><span class="n">2</span> Your details &amp; location</h3>
+          <p class="step-help">Who are we delivering to, and where? Your name and phone are required — the map pin sets the exact delivery fee.</p>
           <div class="field two">
             <div>
               <label for="fName">Full name <span class="req">*</span></label>
@@ -178,7 +180,8 @@
 
       <div class="ostep" data-step="3">
         <div class="panel">
-          <h3><span class="n">3</span> Payment</h3>
+          <h3><span class="n">3</span> Payment &amp; confirm</h3>
+          <p class="step-help">Pick how you want to pay, check the summary below, then send the order to the shop.</p>
           <div class="pay-opts">
             <div class="pay-opt on" data-pay="cod">
               <span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
@@ -248,9 +251,6 @@
         <div class="done-actions" id="doneWa">
           <a class="btn btn-wa" id="doneWaBtn" href="#" target="_blank" rel="noopener">💬 Send order on WhatsApp</a>
         </div>
-        <div class="wa-count" id="waCountdown"></div>
-        <div style="text-align:center"><button type="button" id="waStay" hidden>Stay on this page</button></div>
-
         <div class="done-actions" id="doneShare" style="display:none">
           <button type="button" class="btn btn-ghost" id="doneShareBtn">📸 Send payment screenshot</button>
         </div>

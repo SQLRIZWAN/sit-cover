@@ -24,6 +24,29 @@
     return v.toFixed(3) + ' KD';
   };
 
+  // The shop marks a product down by filling in its ORIGINAL price in the
+  // panel. Only that one number is stored, so the percentage can never drift
+  // away from the two prices the customer actually sees.
+  App.discountOf = function (p) {
+    if (!p) return null;
+    var now = Number(p.price);
+    var was = Number(p.wasPrice);
+    if (!isFinite(now) || !isFinite(was) || now <= 0 || was <= now) return null;
+    var pct = Math.round((1 - now / was) * 100);
+    if (pct < 1) return null;
+    return { was: was, now: now, pct: pct };
+  };
+
+  // Sale price with the old one struck through and the saving spelled out —
+  // the shape every big shop uses:  ~~100.000 KD~~ 60.000 KD  40% OFF
+  App.priceHTML = function (p) {
+    var now = App.fmtKD(p && p.price);
+    var d = App.discountOf(p);
+    if (!d) return now;
+    return '<s class="p-was">' + App.fmtKD(d.was) + '</s>' + now +
+      ' <span class="p-off">' + d.pct + '% OFF</span>';
+  };
+
   App.pad = function (n) { return n < 10 ? '0' + n : '' + n; };
 
   App.todayKey = function () {

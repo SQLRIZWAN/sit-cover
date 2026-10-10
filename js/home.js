@@ -54,6 +54,7 @@
     var thumb = m ? App.mediaThumb(m, 400) : '';
     var isVideo = (m && m.type === 'video') || p.videoFirst === true;
     var out = p.inStock === false;
+    var d = App.discountOf(p);
 
     var media;
     if (thumb) {
@@ -65,11 +66,12 @@
 
     return '<a class="p-card" href="product.html?id=' + encodeURIComponent(p.id) + '">' +
       (out ? '<span class="badge">Out of Stock</span>' : '') +
+      (d && !out ? '<span class="badge off">-' + d.pct + '%</span>' : '') +
       '<div class="p-media">' + media + '</div>' +
       '<div class="p-body">' +
         '<div class="p-cat">' + App.esc(catName(p.categoryId) || 'Product') + '</div>' +
         '<div class="p-name">' + App.esc(p.name) + '</div>' +
-        '<div class="p-price">' + App.fmtKD(p.price) + '</div>' +
+        '<div class="p-price">' + App.priceHTML(p) + '</div>' +
       '</div>' +
     '</a>';
   }

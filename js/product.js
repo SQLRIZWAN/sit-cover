@@ -91,8 +91,9 @@
             (cn ? '<span class="chip">' + App.esc(cn) + '</span>' : '') +
             '<span class="chip ' + (out ? 'bad' : 'ok') + '">' + (out ? 'Out of Stock' : 'In Stock') + '</span>' +
             (media.length ? '<span class="chip">' + media.length + ' photo' + (media.length > 1 ? 's/videos' : '') + '</span>' : '') +
+            (function () { var d = App.discountOf(p); return d ? '<span class="chip off">' + d.pct + '% OFF</span>' : ''; })() +
           '</div>' +
-          '<div class="pd-price">' + App.fmtKD(p.price) + '</div>' +
+          '<div class="pd-price">' + App.priceHTML(p) + '</div>' +
           '<div class="pd-desc"><h3>Details</h3>' + App.esc(p.description || 'Contact the shop for more details about this product.') + '</div>' +
           '<div class="pd-actions">' +
             '<a class="btn btn-ghost act-home" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.2 12 4l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg> Home</a>' +

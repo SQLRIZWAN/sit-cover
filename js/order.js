@@ -882,7 +882,6 @@
     '</div>';
   }
 
-  var waTimer = null;
 
   function fallbackCopy(text) {
     var ta = document.createElement('textarea');
@@ -916,7 +915,8 @@
 
     var waWrap = el('doneWa');
     var link = null;
-    if (cfg.whatsappSubmitEnabled !== false) {
+    // ONE switch, set in the panel: send order details to WhatsApp.
+    if (cfg.whatsappAuto === true) {
       link = App.waLink(cfg.whatsappNumber || cfg.ownerPhone, App.buildWaMessage(order, cfg));
     }
 
@@ -947,11 +947,13 @@
       btn.href = link;
       btn.onclick = function () {
         App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
-        cancelAutoWa();
       };
-      // Admin panel switch — "Send order details to WhatsApp automatically".
-      // Off by default, so nothing changes until the shop turns it on.
-      if (cfg.whatsappAuto === true) startAutoWa(link, id, order, cfg);
+      // The panel has ONE switch for this. On = jump straight to WhatsApp
+      // (a beat only, so the confirmation can paint first). Off = nothing
+      // automatic; the button below does the same job by hand.
+      if (cfg.whatsappAuto === true) {
+        setTimeout(function () { openWhatsApp(link, id, order, cfg); }, 100);
+      }
     } else if (waWrap) {
       waWrap.style.display = 'none';
       var note = el('doneNote');
@@ -960,33 +962,6 @@
 
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
     App.toast('Order placed successfully ✓', 'ok');
-  }
-
-  // Hands the finished order to WhatsApp on its own, but never yanks the
-  // confirmation away before the customer has had a chance to read it.
-  function startAutoWa(link, id, order, cfg) {
-    cancelAutoWa();
-    var box = el('waCountdown');
-    var stay = el('waStay');
-    var left = 5;
-    function paint() {
-      if (box) box.innerHTML = 'Opening WhatsApp in <b>' + left + '</b>…';
-      if (stay) stay.hidden = false;
-    }
-    paint();
-    waTimer = setInterval(function () {
-      left--;
-      if (left <= 0) {
-        cancelAutoWa();
-        openWhatsApp(link, id, order, cfg);
-        return;
-      }
-      paint();
-    }, 1000);
-    if (stay) stay.onclick = function () {
-      cancelAutoWa();
-      App.toast('Automatic send cancelled — use the button below any time', 'ok');
-    };
   }
 
   // Product photos and the payment screenshot are stored as data URIs, which
@@ -1021,14 +996,6 @@
       return;
     }
     location.href = link;
-  }
-
-  function cancelAutoWa() {
-    if (waTimer) { clearInterval(waTimer); waTimer = null; }
-    var box = el('waCountdown');
-    if (box) box.innerHTML = '';
-    var stay = el('waStay');
-    if (stay) stay.hidden = true;
   }
 
   // WhatsApp text links cannot carry a file — hand the screenshot to the
@@ -1158,7 +1125,7 @@
     if (shareBtn) shareBtn.addEventListener('click', shareScreenshot);
 
     var backHome = el('doneHome');
-    if (backHome) backHome.addEventListener('click', cancelAutoWa);
+
 
     // WAMD account name / number live in the database — re-render the payment
     // step whenever the admin changes them.

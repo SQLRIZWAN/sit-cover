@@ -229,7 +229,7 @@
         var me = profileSnapshot();
         var first = me && me.name ? String(me.name).trim().split(/\s+/)[0] : null;
         push('bot', !me
-          ? 'Hello! 👋 Sign in with Google to use this assistant — it shows your own orders, tracks delivery and keeps your scans under your account.'
+          ? '[SIGNIN]'
           : first
             ? 'Hi ' + first + '! 👋 Ask me about any product, your order status or delivery times.'
             : 'Hello! 👋 Ask me about any product and I will help you find it.', true);
@@ -241,6 +241,11 @@
   }
 
   function bind() {
+    msgsBox.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target.closest('[data-ai-login]') : null;
+      if (!t) return;
+      AppAuth.signIn(location.pathname + location.search);
+    });
     fab.addEventListener('pointerdown', dragBegin);
     fab.addEventListener('pointermove', dragMove);
     fab.addEventListener('pointerup', dragEnd);
@@ -395,7 +400,7 @@
         : '') +
       '<div class="ap-b">' +
         '<b>' + esc(p.name) + '</b>' +
-        '<div class="pr">' + App.fmtKD(p.price) +
+        '<div class="pr">' + App.priceHTML(p) +
           '<span class="ap-stock' + (out ? ' out' : '') + '">' + (out ? 'Out of stock' : 'In stock') + '</span>' +
         '</div>' +
         '<div class="ap-acts">' +
@@ -409,7 +414,10 @@
           '<p>' + esc(p.description || 'Ask the shop for more details about this product.') + '</p>' +
           '<ul class="ap-specs">' +
             (cat ? '<li><span>Category</span><b>' + esc(cat) + '</b></li>' : '') +
-            '<li><span>Price</span><b>' + App.fmtKD(p.price) + '</b></li>' +
+            '<li><span>Price</span><b>' + App.priceHTML(p) + '</b></li>' +
+            (function () { var d = App.discountOf(p); return d
+              ? '<li><span>Before discount</span><b>' + App.fmtKD(d.was) + ' (' + d.pct + '% OFF)</b></li>'
+              : ''; })() +
             '<li><span>Stock</span><b>' + (out ? 'Out of stock' : 'In stock') + '</b></li>' +
             '<li><span>Delivery</span><b>1–5 KD by distance</b></li>' +
           '</ul>' +
@@ -419,7 +427,24 @@
     '</div>';
   }
 
+  function loginCardHTML() {
+    return '<div class="ai-login">' +
+      '<b>Sign in to use the assistant</b>' +
+      '<p>It belongs to your Google account, so it can show your own orders, delivery status and saved scans.</p>' +
+      '<ul>' +
+        '<li><i>✓</i> Live delivery status for your orders</li>' +
+        '<li><i>✓</i> Find products with a photo of the item</li>' +
+        '<li><i>✓</i> No password — Google only shares your name and email</li>' +
+      '</ul>' +
+      '<button type="button" class="btn btn-pri g-btn" data-ai-login>' +
+        '<svg class="g-ico" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.5 2.5 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.4-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.4z"/><path fill="#FBBC05" d="M10.4 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6.1a24 24 0 0 0 0 21.6l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.5 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>' +
+        '<span>Continue with Google</span>' +
+      '</button>' +
+      '</div>';
+  }
+
   function botBubbleHTML(text) {
+    if (String(text || '').trim() === '[SIGNIN]') return loginCardHTML();
     var parts = String(text || '').split(/\[PRODUCT:([^\]]+)\]/);
     var html = '';
     for (var i = 0; i < parts.length; i++) {
@@ -773,8 +798,8 @@
     // The assistant is bound to the signed-in account: anonymous auth is off,
     // so without a Google sign-in there is no uid to attach scans to.
     if (!profileSnapshot()) {
-      push('bot', 'Please sign in with Google first — the assistant is tied to your account, so it can show your own orders and delivery status and keep your scans under your user id.', true);
-      App.toast('Sign in with Google to use the assistant');
+      push('bot', '[SIGNIN]', true);
+      input.value = '';
       return;
     }
     if (!App.loaded.products) {
