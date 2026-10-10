@@ -49,7 +49,7 @@
     "reports": {
       ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
       "$reportId": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (!data.exists() && newData.hasChildren(['message','createdAt']) && newData.child('message').isString() && newData.child('message').val().length <= 2000 && newData.child('createdAt').isNumber())"
+        ".write": "auth != null && (auth.token.firebase.sign_in_provider == 'password' || (!data.exists() && newData.hasChildren(['message','createdAt']) && newData.child('message').isString() && newData.child('message').val().length <= 2000 && newData.child('createdAt').isNumber()))"
       }
     },
     "aiScans": {

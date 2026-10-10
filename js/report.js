@@ -76,6 +76,73 @@
   var rm = el('rpRemove');
   if (rm) rm.addEventListener('click', function () { shot = null; paintPreview(); });
 
+  // Live character counter so a long message never hits the 2000 limit by surprise
+  var msgBox = el('rpMessage'), count = el('rpCount');
+  if (msgBox && count) {
+    var paintCount = function () {
+      var n = (msgBox.value || '').length;
+      count.textContent = n + ' / 2000';
+      count.classList.toggle('near', n > 1800);
+    };
+    msgBox.addEventListener('input', paintCount);
+    paintCount();
+  }
+
+  function reportText() {
+    return [
+      'Report — ' + (el('rpType').value || 'Other'),
+      'Name: ' + (el('rpName').value.trim() || '—'),
+      'Phone: ' + (el('rpPhone').value.trim() || '—'),
+      '',
+      el('rpMessage').value.trim()
+    ].join('\n');
+  }
+
+  function shopPhone() {
+    var c = App.cfg();
+    return String(c.ownerPhone || c.whatsappNumber || '').replace(/[^0-9]/g, '');
+  }
+
+  // If the shop database refuses the write, the customer still has a way to
+  // reach us: the same report goes out on WhatsApp instead of a dead end.
+  function showWaFallback() {
+    var box = el('rpWa');
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = '';
+    var p = document.createElement('p');
+    p.className = 'rp-wa-lead';
+    p.textContent = 'You can still send it to us on WhatsApp — it takes one tap.';
+    var a = document.createElement('button');
+    a.type = 'button';
+    a.className = 'btn btn-pri rp-wa-btn';
+    a.textContent = '💬 Send this report on WhatsApp';
+    a.addEventListener('click', function () {
+      var link = App.waLink(shopPhone(), reportText());
+      if (!link) { App.toast('WhatsApp number is not set yet', 'err'); return; }
+      if (shot && shot.data && navigator.canShare) {
+        var name = /\.png$/i.test(shot.name) ? 'report.png' : 'report.jpg';
+        var file = new File([dataURItoBlob(shot.data)], name, { type: shot.data.split(';')[0].replace('data:', '') });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], text: reportText() }).catch(function () { location.href = link; });
+          return;
+        }
+      }
+      location.href = link;
+    });
+    box.appendChild(p);
+    box.appendChild(a);
+  }
+
+  function dataURItoBlob(data) {
+    var parts = String(data).split(',');
+    var bin = atob(parts[1] || '');
+    var mime = (parts[0].match(/data:(.*?);/) || [])[1] || 'image/jpeg';
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
   btn.addEventListener('click', function () {
     var msg = el('rpMessage').value.trim();
     if (!msg) { App.toast('Please describe the issue', 'err'); return; }
@@ -92,13 +159,24 @@
     if (shot && shot.data) { rec.image = shot.data; rec.imageName = shot.name; }
     App.DB.ref('reports').push(rec).then(function () {
       el('rpStatus').textContent = 'Thank you. Your report was submitted successfully.';
-      btn.textContent = 'Submitted ✓';
       el('rpMessage').value = '';
+      if (count) { count.textContent = '0 / 2000'; count.classList.remove('near'); }
       shot = null;
       paintPreview();
+      if (el('rpWa')) el('rpWa').hidden = true;
+      // Ready for another one — the button must not stay locked after success
+      btn.disabled = false;
+      btn.textContent = 'Submit Report';
     }).catch(function (e) {
       btn.disabled = false; btn.textContent = 'Submit Report';
-      App.toast('Could not submit report: ' + e.message, 'err');
+      var code = (e && e.code) || '';
+      if (/PERMISSION_DENIED/i.test(code + ' ' + (e && e.message))) {
+        el('rpStatus').textContent = 'It could not be saved from this device. Send it on WhatsApp below instead.';
+        showWaFallback();
+        App.toast('Could not save it here — send it on WhatsApp instead', 'err');
+        return;
+      }
+      App.toast('Could not submit report: ' + ((e && e.message) || 'unknown error'), 'err');
     });
   });
 })();

@@ -76,8 +76,10 @@
         </div>
 
         <div class="field">
-          <label for="rpMessage">Message</label>
-          <textarea id="rpMessage" maxlength="2000" rows="6" placeholder="Please describe the issue"></textarea>
+          <label for="rpMessage">What went wrong? <span class="opt">(optional details help)</span></label>
+          <textarea id="rpMessage" class="rp-msg" maxlength="2000" rows="4"
+            placeholder="Example: the Submit button on the report page showed an error."></textarea>
+          <div class="rp-count" id="rpCount">0 / 2000</div>
         </div>
 
         <div class="field">
@@ -97,8 +99,11 @@
           <div class="tip">JPG, PNG or WEBP — max 8 MB. It is compressed before it is sent.</div>
         </div>
 
-        <button class="btn btn-pri" id="rpSubmit">Submit Report</button>
-        <div id="rpStatus" class="tip"></div>
+        <div class="rp-actions">
+          <button class="btn btn-pri" id="rpSubmit">Submit Report</button>
+          <div id="rpStatus" class="tip" role="status" aria-live="polite"></div>
+          <div id="rpWa" class="rp-wa" hidden></div>
+        </div>
       </div>
     </div>
   </main>
