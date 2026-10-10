@@ -274,11 +274,19 @@
     return arr;
   };
 
+  // The admin toggle "Stock visible on site" flips inStock off. A shopper must
+  // never meet one of those rows in the catalogue, the search or the assistant,
+  // so every listing on the website goes through this filter.
+  App.isHidden = function (p) {
+    return !!p && p.inStock === false;
+  };
+
   App.prodList = function () {
     var p = App.state.products || {};
     var arr = [];
     for (var id in p) {
       var o = p[id] || {};
+      if (App.isHidden(o)) continue;
       o.id = id;
       arr.push(o);
     }
@@ -914,7 +922,7 @@
   };
 
   // Formatted WhatsApp order card — reads like a receipt, not a wall of text.
-  App.buildWaMessage = function (o, cfg) {
+  App.buildWaMessage = function (o, cfg, withPhotos) {
     var L = [];
     var rule = '━━━━━━━━━━━━━━━━';
     var items = o.items || [];
@@ -924,6 +932,8 @@
     L.push('*NEW ORDER*');
     L.push('*' + cfg.shopName + '*');
     L.push('Order ID: `' + String(o.id || '').slice(-8).toUpperCase() + '`');
+    var when = Number(o.createdAt) || Date.now();
+    try { L.push('Time: ' + new Date(when).toLocaleString()); } catch (e) {}
     L.push(rule);
 
     L.push('*1. ITEMS*');
@@ -951,7 +961,12 @@
 
     if (o.paymentScreenshot) {
       L.push(rule);
-      L.push('📸 Payment screenshot saved with this order — open it in the admin panel.');
+      L.push(withPhotos
+        ? '📸 The payment screenshot travels with this message.'
+        : '📸 Payment screenshot saved with this order — open it in the admin panel.');
+    }
+    if (withPhotos) {
+      L.push('📷 The product photo travels with this message.');
     }
     L.push('');
     L.push('_Sent automatically from the shop website._');

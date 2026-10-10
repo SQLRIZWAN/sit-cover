@@ -57,6 +57,9 @@
     }
 
     var p = App.getProduct(pid);
+    // "Stock visible on site" is off for this one — treat it like a product
+    // that is not published any more.
+    if (App.isHidden(p)) p = null;
     if (!p) {
       root.innerHTML = '<div class="empty" style="margin-top:10px"><div class="big">🔍</div>' +
         '<b>Product not found</b>It may have been removed. Browse all products from Home.' +

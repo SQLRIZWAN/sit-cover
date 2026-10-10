@@ -949,9 +949,9 @@
         App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
         cancelAutoWa();
       };
-      // No auto-redirect: the customer used to be thrown into WhatsApp while
-      // still reading the confirmation. The button above does the same thing
-      // the moment they are ready.
+      // Admin panel switch — "Send order details to WhatsApp automatically".
+      // Off by default, so nothing changes until the shop turns it on.
+      if (cfg.whatsappAuto === true) startAutoWa(link, id, order, cfg);
     } else if (waWrap) {
       waWrap.style.display = 'none';
       var note = el('doneNote');
@@ -960,6 +960,67 @@
 
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
     App.toast('Order placed successfully ✓', 'ok');
+  }
+
+  // Hands the finished order to WhatsApp on its own, but never yanks the
+  // confirmation away before the customer has had a chance to read it.
+  function startAutoWa(link, id, order, cfg) {
+    cancelAutoWa();
+    var box = el('waCountdown');
+    var stay = el('waStay');
+    var left = 5;
+    function paint() {
+      if (box) box.innerHTML = 'Opening WhatsApp in <b>' + left + '</b>…';
+      if (stay) stay.hidden = false;
+    }
+    paint();
+    waTimer = setInterval(function () {
+      left--;
+      if (left <= 0) {
+        cancelAutoWa();
+        openWhatsApp(link, id, order, cfg);
+        return;
+      }
+      paint();
+    }, 1000);
+    if (stay) stay.onclick = function () {
+      cancelAutoWa();
+      App.toast('Automatic send cancelled — use the button below any time', 'ok');
+    };
+  }
+
+  // Product photos and the payment screenshot are stored as data URIs, which
+  // a wa.me link cannot carry. Turn them into real files so the phone's share
+  // sheet can hand them to WhatsApp attached to the order card.
+  function dataUriToFile(url, name) {
+    if (!url || !/^data:/.test(url)) return null;
+    try {
+      var b64 = url.split(',')[1] || '';
+      var bin = atob(b64);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var mime = url.slice(5, url.indexOf(';')) || 'image/jpeg';
+      var ext = mime.indexOf('png') > -1 ? 'png' : (mime.indexOf('webp') > -1 ? 'webp' : 'jpg');
+      return new File([bytes], name + '.' + ext, { type: mime });
+    } catch (e) { return null; }
+  }
+
+  function openWhatsApp(link, id, order, cfg) {
+    App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
+    var files = [];
+    var img = null;
+    (order.items || []).forEach(function (it) { if (!img && it && it.image) img = it.image; });
+    if (img) { var pf = dataUriToFile(img, 'product-photo'); if (pf) files.push(pf); }
+    if (S.ss && S.ss.url) { var sf = dataUriToFile(S.ss.url, 'payment-screenshot'); if (sf) files.push(sf); }
+    var text = App.buildWaMessage(order, cfg || App.cfg(), files.length > 0);
+    var canShare = files.length && navigator.share && navigator.canShare && navigator.canShare({ files: files });
+    if (canShare) {
+      navigator.share({ files: files, text: text }).then(function () {
+        App.toast('Order details sent to WhatsApp ✓', 'ok');
+      }).catch(function () { location.href = link; });
+      return;
+    }
+    location.href = link;
   }
 
   function cancelAutoWa() {
