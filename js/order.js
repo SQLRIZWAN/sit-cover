@@ -104,7 +104,7 @@
   }
 
   function subtotal() {
-    return selectedItems().reduce(function (s, x) { return s + (Number(x.price) || 0) * (x.qty || 1); }, 0);
+    return selectedItems().reduce(function (s, x) { return s + App.linePrice(x) * (x.qty || 1); }, 0);
   }
 
   function saveDraft() {
@@ -179,7 +179,7 @@
       return '<div class="cart-row' + (on ? '' : ' off') + (st.ok ? '' : ' bad') + '" data-id="' + App.esc(x.id) + '">' +
         '<button type="button" class="ck' + (on ? ' on' : '') + '" data-act="tick"' + (st.ok ? '' : ' disabled') + ' aria-label="select"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></button>' +
         '<div class="cart-img">' + (x.image ? '<img src="' + App.esc(x.image) + '" alt="" loading="lazy">' : '<div style="display:flex;height:100%;align-items:center;justify-content:center">🛍️</div>') + '</div>' +
-        '<div class="cart-nm"><b>' + App.esc(x.name) + '</b><span>' + App.fmtKD(x.price) + ' each</span>' +
+        '<div class="cart-nm"><b>' + App.esc(x.name) + '</b><span>' + App.fmtKD(App.linePrice(x)) + ' each</span>' +
           (st.ok ? '' : '<span class="cart-oos">' + (st.out ? 'Out of stock' : 'Only ' + st.max + ' left') + '</span>') +
           '<div class="qty" role="group" aria-label="Quantity for ' + App.esc(x.name) + '">' +
             '<button type="button" class="q-b" data-act="minus" aria-label="Decrease quantity of ' + App.esc(x.name) + '">−</button>' +
@@ -187,7 +187,7 @@
             '<button type="button" class="q-b" data-act="plus"' + (maxed ? ' disabled' : '') + ' aria-label="Increase quantity of ' + App.esc(x.name) + '">+</button>' +
           '</div>' +
         '</div>' +
-        '<div class="cart-rt"><b>' + App.fmtKD((Number(x.price) || 0) * (x.qty || 1)) + '</b>' +
+        '<div class="cart-rt"><b>' + App.fmtKD(App.linePrice(x) * (x.qty || 1)) + '</b>' +
           '<button type="button" class="cart-del" data-act="del">Remove</button></div>' +
       '</div>';
     }).join('');
@@ -598,7 +598,7 @@
 
     el('pItems').innerHTML = sel.map(function (x) {
       return '<div class="summary-line"><span>' + App.esc(x.name) + ' × ' + (x.qty || 1) + '</span>' +
-        '<b>' + App.fmtKD((Number(x.price) || 0) * (x.qty || 1)) + '</b></div>';
+        '<b>' + App.fmtKD(App.linePrice(x) * (x.qty || 1)) + '</b></div>';
     }).join('');
     el('pSub').textContent = App.fmtKD(sub);
     el('pDist').textContent = S.distance != null ? S.distance.toFixed(1) + ' km' : 'flat rate';
@@ -761,7 +761,7 @@
         return {
           productId: x.id,
           name: x.name,
-          price: Number(x.price) || 0,
+          price: App.linePrice(x),
           qty: x.qty || 1,
           image: x.image || ''
         };

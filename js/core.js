@@ -512,11 +512,52 @@
       return Array.isArray(v) ? v : [];
     } catch (e) { return []; }
   }
-  function writeCartKey(key, arr) {
+  // `stamp` records WHEN this basket last changed on this device, so a stale
+  // cloud copy can never be mistaken for the newer one. Pass false when the
+  // value came FROM the cloud (it must not look like a fresh local edit).
+  function writeCartKey(key, arr, stamp) {
     try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+    if (stamp === false) return;
+    try { localStorage.setItem(key + '__at', String(Date.now())); } catch (e) {}
+  }
+  function readCartAt(key) {
+    try { return Number(localStorage.getItem(key + '__at') || 0) || 0; } catch (e) { return 0; }
   }
 
   var cartPushTimer = null;
+  var cartDirty = false;
+
+  // "Buy Now" navigates a few hundred milliseconds later, which used to kill
+  // the debounced upload: the next page then pulled an OLD cloud basket and
+  // wiped the item that had just been added. Flush the current basket now.
+  function flushCartToCloud() {
+    if (cartPushTimer) { clearTimeout(cartPushTimer); cartPushTimer = null; }
+    var uid = App.currentUid();
+    if (!uid || !App.DB || typeof firebase === 'undefined') { cartDirty = false; return; }
+    var items = App.Cart.list();
+    cartDirty = false;
+    App.DB.ref('stats/carts/' + uid).set({
+      fid: App.fbUid || '',
+      items: items,
+      updatedAt: firebase.database.ServerValue.TIMESTAMP
+    }).then(function () {
+      cartDirty = false;
+    }).catch(function () {
+      cartDirty = true;
+    });
+  }
+  function scheduleCartFlush() {
+    cartDirty = true;
+    clearTimeout(cartPushTimer);
+    cartPushTimer = setTimeout(flushCartToCloud, 250);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', function () { if (cartDirty || cartPushTimer) flushCartToCloud(); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden' && (cartDirty || cartPushTimer)) flushCartToCloud();
+    });
+  }
 
   App.Cart = {
     list: function () {
@@ -528,6 +569,7 @@
       App.Cart.pushToCloud();
       App.fire('cart');
     },
+    flushCloud: flushCartToCloud,
     add: function (p, qty) {
       var arr = App.Cart.list();
       var found = null;
@@ -604,26 +646,52 @@
         changed = true;
       });
       if (changed) App.Cart.save(arr);
+    },
+    // A basket line keeps the price it was added at, which silently goes stale
+    // whenever the shop edits a product. Re-base every line on the live
+    // catalogue so the basket, the subtotal and the saved order all agree.
+    syncPrices: function () {
+      var arr = App.Cart.list();
+      if (!arr.length) return false;
+      var changed = false;
+      arr.forEach(function (it) {
+        var p = App.getProduct(it.id);
+        if (!p) return;
+        var np = Number(p.price);
+        if (isFinite(np) && Number(it.price) !== np) { it.price = np; changed = true; }
+        if (p.name && it.name !== p.name) { it.name = p.name; changed = true; }
+        var m = App.firstMedia(p);
+        var img = p.mini || p.thumb || (m ? App.mediaThumb(m, 300) : '');
+        if (img && it.image !== img) { it.image = img; changed = true; }
+      });
+      if (changed) App.Cart.save(arr);
+      return changed;
     }
+  };
+
+  // Always resolve a basket line against the LIVE catalogue first, then fall
+  // back to the price stored on the line itself.
+  App.linePrice = function (item) {
+    var p = item ? App.getProduct(item.id) : null;
+    if (p && p.price !== undefined && p.price !== null && p.price !== '') {
+      var v = Number(p.price);
+      if (isFinite(v)) return v;
+    }
+    return Number(item && item.price) || 0;
   };
 
   App.Cart.pushToCloud = function () {
     var uid = App.currentUid();
     if (!uid || !App.DB || typeof firebase === 'undefined') return;
-    clearTimeout(cartPushTimer);
-    cartPushTimer = setTimeout(function () {
-      var nowUid = App.currentUid();
-      if (!nowUid || !App.DB) return;
-      App.DB.ref('stats/carts/' + nowUid).set({
-        items: App.Cart.list(),
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-      }).catch(function () {});
-    }, 700);
+    scheduleCartFlush();
   };
 
   App.Cart.pullFromCloud = function () {
     var uid = App.currentUid();
     if (!uid || !App.DB) return Promise.resolve();
+    // A local edit is still on its way up — never let a stale download win.
+    if (cartDirty) { flushCartToCloud(); return Promise.resolve(); }
+    var key = App.cartKeyFor(uid);
     return App.DB.ref('stats/carts/' + uid).once('value').then(function (s) {
       if (App.currentUid() !== uid) return;
       var v = s.val();
@@ -633,20 +701,20 @@
       else if (raw && typeof raw === 'object') {
         items = Object.keys(raw).sort().map(function (k) { return raw[k]; });
       }
-      if (!v) {
-        // Nothing stored for this account yet — publish whatever was picked up
-        // before signing in.
-        if (App.Cart.list().length) App.Cart.pushToCloud();
-        return;
-      }
-      if (!items) {
-        // Stored with no items: the basket was emptied somewhere else.
-        writeCartKey(App.cartKeyFor(uid), []);
+      var local = readCartKey(key);
+
+      // Nothing (or an emptied basket) in the cloud: the local basket is the
+      // source of truth. Wiping it here is what made "Buy Now" vanish.
+      if (!v || !items || !items.length) {
+        if (local.length) flushCartToCloud();
         App.updateCartBadge();
         App.fire('cart');
         return;
       }
-      writeCartKey(App.cartKeyFor(uid), items);
+      if (!local.length) { writeCartKey(key, items, false); }
+      else if ((Number(v.updatedAt) || 0) >= readCartAt(key)) writeCartKey(key, items, false);
+      else { flushCartToCloud(); return; }
+
       App.Cart.repair();
       App.updateCartBadge();
       App.fire('cart');
@@ -1642,7 +1710,7 @@
     });
     loadFirebase();
 
-    App.on('products', function () { App.Cart.repair(); App.updateCartBadge(); });
+    App.on('products', function () { App.Cart.repair(); App.Cart.syncPrices(); App.updateCartBadge(); });
     App.on('config', function () { App.applyBranding(); });
     App.on('fbReady', function () { if (App.currentUid()) App.Cart.pullFromCloud(); });
     initPWA();
