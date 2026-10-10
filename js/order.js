@@ -13,7 +13,7 @@
     buyerLoaded: false
   };
 
-  var maps = { loaded: false, ok: false, map: null, marker: null, geo: null, ac: null, authFailed: false };
+  var maps = { loaded: false, ok: false, map: null, marker: null };
 
   function el(id) { return document.getElementById(id); }
 
@@ -272,6 +272,7 @@
     loadBuyer();
     fillFromProfile();
     updateLocInfo();
+    initMap();
   }
 
   function addressFromForm() {
@@ -288,11 +289,14 @@
     var box = el('locInfo');
     if (!box) return;
     if (S.customer.lat == null) {
-      box.innerHTML = '<b>No location selected yet.</b> Tap “Use my location” so we can calculate the distance and the exact delivery fee automatically.';
+      box.innerHTML = '<b>No location selected yet.</b> Tap “Use my location”, or drop a pin on the map, so we can calculate the distance and the exact delivery fee automatically.';
       return;
     }
     var d = S.distance != null ? S.distance.toFixed(1) + ' km' : '—';
-    box.innerHTML = '📍 <b>' + d + '</b> from the shop • Estimated delivery: <b>' + App.fmtKD(feeNow()) + '</b>' +
+    var extra = '';
+    if (S.geoName) extra += '<br>🧭 ' + App.esc(String(S.geoName).split(',').slice(0, 3).join(','));
+    if (S.geoApprox) extra += '<br>⚠️ Approximate (city level from your network) — drag the pin to your building for the right fee.';
+    box.innerHTML = '📍 <b>' + d + '</b> from the shop • Estimated delivery: <b>' + App.fmtKD(feeNow()) + '</b>' + extra +
       (S.distance != null && S.distance > 50 ? '<br>⚠️ This looks beyond 50 km — please call the shop to confirm.' : '');
   }
 
@@ -322,102 +326,154 @@
     }
     var c = App.cfg();
     S.distance = App.haversine(Number(c.shopLat), Number(c.shopLng), S.customer.lat, S.customer.lng);
+    // Precise sources (map pin, drag, GPS, typed coordinates) clear the
+    // "city-level" warning; netLocate sets it again after calling us.
+    S.geoApprox = false;
+    if (doGeocode) S.geoName = '';
 
-    if (maps.marker) {
-      maps.marker.setPosition({ lat: S.customer.lat, lng: S.customer.lng });
-      maps.marker.setVisible(true);
+    if (maps.map && window.L) {
+      if (maps.marker) {
+        maps.marker.setLatLng([S.customer.lat, S.customer.lng]);
+      } else {
+        maps.marker = L.marker([S.customer.lat, S.customer.lng], {
+          draggable: true,
+          icon: L.divIcon({ className: 'sc-pin', html: '<i></i>', iconSize: [26, 34], iconAnchor: [13, 32] })
+        }).addTo(maps.map);
+        maps.marker.on('dragend', function () {
+          var p = maps.marker.getLatLng();
+          setLoc(p.lat, p.lng, null, true);
+        });
+      }
+      try {
+        var z = Math.max(maps.map.getZoom(), 12);
+        maps.map.setView([S.customer.lat, S.customer.lng], z);
+      } catch (e) {}
     }
-    if (maps.map) maps.map.panTo({ lat: S.customer.lat, lng: S.customer.lng });
 
     updateLocInfo();
 
-    if (doGeocode && maps.ok && google.maps.Geocoder) {
-      if (!maps.geo) maps.geo = new google.maps.Geocoder();
-      maps.geo.geocode({ location: { lat: S.customer.lat, lng: S.customer.lng } }, function (res, st) {
-        if (st === 'OK' && res && res[0]) {
-          S.customer.address = res[0].formatted_address;
-          var ai2 = el('fAddr');
-          if (ai2) ai2.value = S.customer.address;
-        }
-      });
-    }
+    if (doGeocode) reverseGeo(S.customer.lat, S.customer.lng);
+  }
+
+  // Free reverse geocode (OSM Nominatim — no key, CORS open). Used only to
+  // tell the customer which area the pin landed on; the typed address in the
+  // form stays what we ship with.
+  var geoBusy = false, geoLast = 0;
+  function reverseGeo(lat, lng) {
+    if (geoBusy || Date.now() - geoLast < 1200) return;
+    geoBusy = true;
+    geoLast = Date.now();
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=en&lat=' +
+      encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+    fetch(url, { headers: { 'Accept': 'application/json' }, mode: 'cors' })
+      .then(function (r) { return r && r.ok ? r.json() : null; })
+      .then(function (j) {
+        geoBusy = false;
+        if (!j || !j.display_name) return;
+        S.geoName = String(j.display_name);
+        updateLocInfo();
+      })
+      .catch(function () { geoBusy = false; });
+  }
+
+  function ensureMapCss() {
+    if (document.getElementById('leafletCss')) return;
+    var l = document.createElement('link');
+    l.id = 'leafletCss';
+    l.rel = 'stylesheet';
+    l.href = 'css/leaflet.css';
+    document.head.appendChild(l);
   }
 
   function buildMap() {
+    if (maps.map || !window.L) return;
+    var box = el('mapBox');
     var c = App.cfg();
-    var center = { lat: Number(c.shopLat) || 29.2844, lng: Number(c.shopLng) || 47.9656 };
-    maps.map = new google.maps.Map(el('mapBox'), {
-      center: center,
-      zoom: 11,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      clickableIcons: true
-    });
-    maps.marker = new google.maps.Marker({
-      map: maps.map,
-      position: center,
-      draggable: true,
-      animation: google.maps.Animation.DROP
-    });
-    maps.marker.setVisible(false);
-
-    maps.map.addListener('click', function (e) {
-      setLoc(e.latLng.lat(), e.latLng.lng(), null, true);
-    });
-    maps.marker.addListener('dragend', function (e) {
-      setLoc(e.latLng.lat(), e.latLng.lng(), null, true);
-    });
-
-    var addrEl = el('fAddr');
-    if (addrEl && google.maps.places) {
-      maps.ac = new google.maps.places.Autocomplete(addrEl, {
-        fields: ['formatted_address', 'geometry'],
-        region: 'KW'
+    var center = [Number(c.shopLat) || 29.2844, Number(c.shopLng) || 47.9656];
+    if (!box) return;
+    var fb = box.querySelector('.map-fallback');
+    if (fb) fb.remove();
+    try {
+      maps.map = L.map(box, { scrollWheelZoom: false, attributionControl: true }).setView(center, 11);
+      maps.ok = true;
+      var tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
       });
-      maps.ac.addListener('place_changed', function () {
-        var pl = maps.ac.getPlace();
-        if (pl && pl.geometry && pl.geometry.location) {
-          setLoc(pl.geometry.location.lat(), pl.geometry.location.lng(), pl.formatted_address, false);
+      var errs = 0;
+      tiles.on('tileerror', function () {
+        if (++errs >= 3 && maps.ok) {
+          maps.ok = false;
+          mapFallback('Map tiles are blocked on this network. GPS, coordinates and “Find my area” still work.');
         }
       });
+      tiles.addTo(maps.map);
+      L.circleMarker(center, {
+        radius: 7, color: '#0f172a', weight: 2, fillColor: '#22c55e', fillOpacity: 1
+      }).addTo(maps.map).bindPopup('<b>Fix and Fit store</b><br>Jleeb Al-Shuyoukh, Kuwait');
+      maps.map.on('click', function (e) {
+        setLoc(e.latlng.lat, e.latlng.lng, null, true);
+      });
+    } catch (e) {
+      mapFallback('Map could not start: ' + (e && e.message ? e.message : 'error'));
+      return;
     }
+    if (S.customer.lat != null && S.customer.lng != null) {
+      setLoc(S.customer.lat, S.customer.lng, null, false);
+    }
+    setTimeout(function () { try { maps.map.invalidateSize(); } catch (e) {} }, 150);
   }
 
-  function initMaps() {
-    if (maps.loaded) return;
-    maps.loaded = true;
-
-    var key = '';
-    try { key = (window.APP_CONFIG && APP_CONFIG.firebase && APP_CONFIG.firebase.apiKey) || ''; } catch (e) {}
-    if (!key) { mapFallback('Map key not configured.'); return; }
-
-    window.gm_authFailure = function () {
-      maps.authFailed = true;
-      maps.ok = false;
-      mapFallback('Google Maps is not enabled for this API key yet (enable Maps JavaScript API in Google Cloud). GPS still works.');
-    };
-    window.__scMapReady = function () {
-      if (maps.authFailed) return;
-      try {
-        buildMap();
-        maps.ok = true;
-        var fb = el('mapBox').querySelector('.map-fallback');
-        if (fb) fb.remove();
-      } catch (e) {
-        mapFallback('Map could not start: ' + e.message);
-      }
-    };
-
-    App.loadScript('https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) +
-      '&callback=__scMapReady&language=en&region=KW&libraries=places', function (err) {
-      if (err) mapFallback('Google Maps failed to load. Check internet, or use GPS.');
-      else setTimeout(function () {
-        if (!maps.ok && !maps.authFailed && !maps.map) {
-          mapFallback('Map is taking too long. Use “Use my location” instead.');
+  // Called when step 2 opens (the pane is display:none until then, so
+  // Leaflet measures a 0×0 box unless we invalidateSize on re-entry).
+  function initMap() {
+    ensureMapCss();
+    if (window.L) {
+      if (maps.map) {
+        if (S.customer.lat != null && S.customer.lng != null) {
+          setLoc(S.customer.lat, S.customer.lng, null, false);
         }
-      }, 8000);
+        setTimeout(function () { try { maps.map.invalidateSize(); } catch (e) {} }, 60);
+      } else {
+        buildMap();
+      }
+      return;
+    }
+    App.loadScript('js/leaflet.js', function (err) {
+      if (err) {
+        mapFallback('Map library could not load on this connection. GPS, coordinates and “Find my area” still work.');
+        return;
+      }
+      buildMap();
     });
+  }
+
+  // Network-based location: reads the public IP and returns a city-level
+  // point. Much coarser than GPS, but it works with no permissions and no
+  // API key — the customer can drag the pin to their building afterwards.
+  function netLocate() {
+    var btn = el('locNet');
+    var box = el('locInfo');
+    if (box) box.classList.remove('warn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Finding your city…'; }
+    fetch('https://ipwho.is/', { mode: 'cors' })
+      .then(function (r) { return r && r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (btn) { btn.disabled = false; btn.textContent = '🌐 My network location'; }
+        if (!j || j.success === false || !isFinite(Number(j.latitude)) || !isFinite(Number(j.longitude))) {
+          locNote('your network location could not be read. Use “Use my location” (GPS) instead.');
+          return;
+        }
+        setLoc(Number(j.latitude), Number(j.longitude), null, false);
+        S.geoApprox = true;
+        S.geoName = [j.city, j.region, j.country].filter(Boolean).join(', ');
+        updateLocInfo();
+        App.toast('Approximate location set ✓ — drag the pin to your building', 'ok');
+      })
+      .catch(function () {
+        if (btn) { btn.disabled = false; btn.textContent = '🌐 My network location'; }
+        locNote('your network location could not be read. Use “Use my location” (GPS) instead.');
+      });
   }
 
   function openManual() {
@@ -887,7 +943,9 @@
         App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
         cancelAutoWa();
       };
-      startAutoWa(link, id);
+      // No auto-redirect: the customer used to be thrown into WhatsApp while
+      // still reading the confirmation. The button above does the same thing
+      // the moment they are ready.
     } else if (waWrap) {
       waWrap.style.display = 'none';
       var note = el('doneNote');
@@ -896,31 +954,6 @@
 
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
     App.toast('Order placed successfully ✓', 'ok');
-  }
-
-  // Auto-hand the order to WhatsApp, but never yank the confirmation away
-  // before the customer has had a chance to read it (and let them opt out).
-  function startAutoWa(link, id) {
-    cancelAutoWa();
-    var box = el('waCountdown');
-    var stay = el('waStay');
-    var left = 4;
-    function paint() {
-      if (box) box.innerHTML = 'Opening WhatsApp in <b>' + left + '</b>…';
-      if (stay) stay.hidden = false;
-    }
-    paint();
-    waTimer = setInterval(function () {
-      left--;
-      if (left <= 0) {
-        cancelAutoWa();
-        App.DB.ref('orders/' + id).update({ whatsappSent: true }).catch(function () {});
-        location.href = link;
-        return;
-      }
-      paint();
-    }, 1000);
-    if (stay) stay.onclick = function () { cancelAutoWa(); App.toast('WhatsApp left open — send it any time from the button below', 'ok'); };
   }
 
   function cancelAutoWa() {
@@ -974,6 +1007,8 @@
     if (locBtn) locBtn.addEventListener('click', useMyLoc);
     var locAi = el('locAi');
     if (locAi) locAi.addEventListener('click', function () { aiLocate(false); });
+    var locNet = el('locNet');
+    if (locNet) locNet.addEventListener('click', netLocate);
     var locApply = el('locApply');
     if (locApply) locApply.addEventListener('click', function () {
       var la = parseFloat(String(el('locLat') && el('locLat').value || '').replace(/[^\d.\-]/g, ''));
@@ -1021,12 +1056,20 @@
 
     Array.prototype.forEach.call(document.querySelectorAll('.pay-opt'), function (o) {
       o.addEventListener('click', function () {
-        if (o.getAttribute('data-pay') === 'wamd') {
-          saveDraft();
-          location.href = 'wamd.html';
-          return;
+        // WAMD stays on this page: step 3 already carries the account details
+        // and the screenshot upload. Navigating to wamd.html used to bounce the
+        // customer back to the payment step, losing their scroll position.
+        var m = o.getAttribute('data-pay');
+        setPay(m);
+        if (m === 'wamd') {
+          var w = el('wamdBox');
+          if (w && w.scrollIntoView) {
+            setTimeout(function () {
+              try { w.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+              catch (e) { try { w.scrollIntoView(); } catch (e2) {} }
+            }, 60);
+          }
         }
-        setPay(o.getAttribute('data-pay'));
       });
     });
 

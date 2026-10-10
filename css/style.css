@@ -2207,3 +2207,26 @@ html.ai-lock, html.ai-lock body { overflow: hidden; }
 .pay-opt.on .tick { opacity: 1; }
 .wamd-box { border-radius: 14px; }
 .order-nav .btn { min-height: 50px; }
+
+/* ---- Round 7d: Leaflet delivery map (no API key) + calm confirmation ---- */
+.map-box { width: 100%; }
+#mapBox .leaflet-container { cursor: crosshair; font: inherit; background: #dbe5ef; }
+#mapBox .leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.82); }
+.sc-pin { background: none !important; border: 0 !important; }
+.sc-pin i {
+  position: absolute;
+  left: 2px;
+  top: 5px;
+  width: 22px;
+  height: 22px;
+  background: #d97706;
+  border: 2.5px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, .38);
+}
+.wa-count:empty { display: none; }
+@media (max-width: 560px) {
+  #mapBox { height: 205px; }
+  .loc-btns .btn { flex: 1 1 100%; }
+}

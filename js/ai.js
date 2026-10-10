@@ -228,12 +228,14 @@
         greeted = true;
         var me = profileSnapshot();
         var first = me && me.name ? String(me.name).trim().split(/\s+/)[0] : null;
-        push('bot', first
-          ? 'Hi ' + first + '! 👋 Ask me about any product, your order status or delivery times.'
-          : 'Hello! 👋 Ask me about any product and I will help you find it.', true);
+        push('bot', !me
+          ? 'Hello! 👋 Sign in with Google to use this assistant — it shows your own orders, tracks delivery and keeps your scans under your account.'
+          : first
+            ? 'Hi ' + first + '! 👋 Ask me about any product, your order status or delivery times.'
+            : 'Hello! 👋 Ask me about any product and I will help you find it.', true);
       }
       var sub = el('aiSub');
-      if (sub) sub.textContent = profileSnapshot() ? 'Orders · products · delivery' : 'Product help';
+      if (sub) sub.textContent = profileSnapshot() ? 'Orders · products · delivery' : 'Sign in for orders';
       setTimeout(function () { try { input.focus(); } catch (e) {} }, 120);
     }
   }
@@ -758,7 +760,9 @@
   function saveScan(imageUrl, publicId, query, matched) {
     try {
       if (!App.DB) return;
+      var snap = profileSnapshot();
       App.DB.ref('aiScans').push({
+        uid: (snap && snap.uid) || '',
         imageUrl: imageUrl || '',
         publicId: publicId || '',
         query: query || '',
@@ -781,6 +785,13 @@
     var text = (input.value || '').trim();
     var file = pendingFile;
     if (!text && !file) return;
+    // The assistant is bound to the signed-in account: anonymous auth is off,
+    // so without a Google sign-in there is no uid to attach scans to.
+    if (!profileSnapshot()) {
+      push('bot', 'Please sign in with Google first — the assistant is tied to your account, so it can show your own orders and delivery status and keep your scans under your user id.', true);
+      App.toast('Sign in with Google to use the assistant');
+      return;
+    }
     if (!App.loaded.products) {
       App.toast('Catalog is still loading — buy cards may be limited');
     }
@@ -846,6 +857,7 @@
   App.aiGeocode = function (address) {
     var addr = String(address || '').trim();
     if (!addr) return Promise.reject(new Error('empty address'));
+    if (!profileSnapshot()) return Promise.reject(new Error('sign in required'));
     var parts = [{ text: 'Delivery address: ' + addr }];
     var sys = 'You are a geocoding helper for a delivery shop in Kuwait (Jleeb Al-Shuyoukh area, Kuwait City). ' +
       'Given a delivery address, reply with ONLY a compact JSON object: {"lat":<number>,"lng":<number>}. ' +

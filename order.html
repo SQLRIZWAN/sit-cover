@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" media="print" onload="this.media=&#39;all&#39;">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"></noscript>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/leaflet.css">
+<script src="js/leaflet.js" defer></script>
   <script>
     function googleTranslateElementInit() {
       try {
@@ -149,9 +151,11 @@
             <label class="loc-lab">📍 Delivery point <span class="opt">(needed for the exact delivery fee — Continue stays locked until it is set)</span></label>
             <div class="loc-btns">
               <button type="button" class="btn btn-ghost" id="locBtn">📍 Use my location</button>
+              <button type="button" class="btn btn-ghost" id="locNet">🌐 My network location</button>
               <button type="button" class="btn btn-ghost" id="locAi">✨ Find my area automatically</button>
             </div>
-            <div class="loc-info" id="locInfo"><b>No location selected yet.</b> Tap “Use my location”, or “Find my area automatically” if GPS is off — then Continue unlocks.</div>
+            <div id="mapBox" class="map-box" aria-label="Delivery point map"></div>
+            <div class="loc-info" id="locInfo"><b>No location selected yet.</b> Tap “Use my location”, drop a pin on the map, or “Find my area automatically” if GPS is off — then Continue unlocks.</div>
             <details class="loc-manual" id="locManual">
               <summary>Can't use GPS? Enter the map coordinates yourself</summary>
               <div class="loc-manual-in">
