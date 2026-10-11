@@ -999,7 +999,13 @@
   App.waLink = function (num, text) {
     var n = String(num || '').replace(/[^0-9]/g, '');
     if (!n) return null;
-    return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text);
+    var msg = encodeURIComponent(text || '');
+    // On phones the custom scheme opens the installed WhatsApp app instantly.
+    // wa.me / api.whatsapp.com show a web "Open app" interstitial in Chrome
+    // even when the app is installed.
+    var ua = navigator.userAgent || '';
+    if (/android|iphone|ipad|ipod/i.test(ua)) return 'whatsapp://send?phone=' + n + '&text=' + msg;
+    return 'https://wa.me/' + n + '?text=' + msg;
   };
 
   function headerHTML() {

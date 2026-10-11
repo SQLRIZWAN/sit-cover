@@ -52,6 +52,13 @@
         ".write": "auth != null && (auth.token.firebase.sign_in_provider == 'password' || (!data.exists() && newData.hasChildren(['message','createdAt']) && newData.child('message').isString() && newData.child('message').val().length <= 2000 && newData.child('createdAt').isNumber()))"
       }
     },
+    "adminLogs": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+      ".indexOn": [
+        "at"
+      ],
+      ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
+    },
     "aiScans": {
       ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
       ".indexOn": [
