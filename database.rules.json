@@ -27,8 +27,8 @@
         "fid"
       ],
       "$orderId": {
-        ".read": "auth != null && (!data.exists() || data.child('fid').val() == auth.uid)",
-        ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (!data.exists() && newData.hasChildren(['status','total','subtotal','items','customer','uid','fid','createdAt']) && newData.child('status').val() == 'new' && newData.child('total').isNumber() && newData.child('total').val() > 0 && newData.child('subtotal').isNumber() && newData.child('subtotal').val() >= 0 && newData.child('items').hasChildren() && newData.child('customer').child('name').isString() && newData.child('customer').child('phone').isString() && newData.child('uid').isString() && newData.child('fid').isString() && (newData.child('fid').val() == '' || (auth != null && newData.child('fid').val() == auth.uid)) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 3600000)",
+        ".read": "auth != null",
+        ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (!data.exists() && newData.hasChildren(['status','total','subtotal','items','customer','uid','fid','createdAt']) && newData.child('status').val() == 'new' && newData.child('total').isNumber() && newData.child('total').val() > 0 && newData.child('subtotal').isNumber() && newData.child('subtotal').val() >= 0 && newData.child('deliveryFee').isNumber() && newData.child('deliveryFee').val() >= 0 && newData.child('total').val() == newData.child('subtotal').val() + newData.child('deliveryFee').val() && newData.child('items').hasChildren() && newData.child('customer').child('name').isString() && newData.child('customer').child('phone').isString() && newData.child('customer').child('address').isString() && newData.child('uid').isString() && newData.child('fid').isString() && (newData.child('fid').val() == '' || (auth != null && newData.child('fid').val() == auth.uid)) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 3600000)",
         "whatsappSent": {
           ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && data.parent().child('fid').val() == auth.uid && newData.isBoolean() && newData.val() == true)"
         },
@@ -43,7 +43,7 @@
     "order_shots": {
       ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
       "$shotId": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && !data.exists() && newData.isString() && newData.val().length <= 40000)"
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' || (auth != null && !data.exists() && newData.isString() && newData.val().length <= 400000)"
       }
     },
     "reports": {
@@ -68,9 +68,9 @@
         ".write": "auth != null"
       },
       "myorders": {
-        "$fid": {
-          ".read": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && $fid == auth.uid)",
-          ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && $fid == auth.uid)"
+        "$key": {
+          ".read": "auth != null",
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (auth != null && (!data.exists() || data.val() == true) && newData.val() == true)"
         }
       },
       "users": {

@@ -150,6 +150,12 @@
     if (n === 1) renderCart();
     if (n === 2) { renderDetails(); }
     if (n === 4) renderPayment();
+    // Move keyboard/screen-reader focus to the new step heading so assistive
+    // technology announces the change instead of staying on the old button.
+    var head = document.querySelector('.ostep[data-step="' + n + '"] h3, .ostep[data-step="' + n + '"] h2');
+    if (head) {
+      try { head.setAttribute('tabindex', '-1'); head.focus({ preventScroll: true }); } catch (e) {}
+    }
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }
 
@@ -488,7 +494,7 @@
     if (!box) return;
     box.classList.add('warn');
     box.innerHTML = '<b>📍 Location unavailable.</b> ' + App.esc(msg) +
-      '<br>You can still continue — the delivery fee will be the normal area rate.';
+      '<br>Set your delivery point (GPS, network, pin or coordinates) to continue — that locks the exact delivery fee.';
   }
 
   function useMyLoc() {
@@ -645,6 +651,13 @@
     prog.classList.add('on');
     bar.style.width = '5%';
     App.cloudUpload(f, function (p) { bar.style.width = p + '%'; }).then(function (media) {
+      // Shrink hard right away: this same data URI is written to order_shots,
+      // and the database rule rejects anything over ~400 KB.
+      return App.makeVariant(media.url, 1000, 0.65).then(function (small) {
+        if (small) media.url = small;
+        return media;
+      });
+    }).then(function (media) {
       S.ss = media;
       bar.style.width = '100%';
       el('ssPrev').classList.add('on');
@@ -750,6 +763,13 @@
     var stockErr = stockProblems(sel);
     if (stockErr.length) { App.toast(stockErr[0], 'err'); goStep(1); return; }
     if (!S.customer.name || !S.customer.phone) { App.toast('Missing details — go back a step', 'err'); goStep(2); return; }
+    // The database now requires a non-empty address on every order — bail out
+    // early with a clear message instead of letting the write get rejected.
+    if (!String(S.customer.address || '').trim()) {
+      App.toast('Delivery address is missing — go back a step', 'err');
+      goStep(2);
+      return;
+    }
 
     setBtnLoading(btn, true, 'Submitting order…');
     var stopProgress = startSubmitProgress(btn);
@@ -797,10 +817,15 @@
     var id = ref.key;
     order.id = id;
 
-    var myIds = App.fbUid
-      ? App.DB.ref('stats/myorders/' + App.fbUid + '/' + id).set(true).catch(function () {})
-      : Promise.resolve();
-    var savePromise = Promise.all([ref.set(order), myIds]);
+    var myIdsWrites = [];
+    if (App.fbUid) {
+      myIdsWrites.push(App.DB.ref('stats/myorders/' + App.fbUid + '/' + id).set(true).catch(function () {}));
+    }
+    var accUid = me.uid || '';
+    if (accUid && accUid !== App.fbUid) {
+      myIdsWrites.push(App.DB.ref('stats/myorders/' + accUid + '/' + id).set(true).catch(function () {}));
+    }
+    var savePromise = Promise.all([ref.set(order)].concat(myIdsWrites));
     var saveTimeout = new Promise(function (_, reject) {
       setTimeout(function () { reject(new Error('The connection is taking too long. Please check internet and try again.')); }, 15000);
     });
@@ -833,7 +858,18 @@
       }
 
       if (S.ss && S.ss.url) {
-        App.DB.ref('order_shots/' + id).set(S.ss.url).catch(function () {});
+        // Compress hard before writing: the database rule caps the string at
+        // ~400 KB, so a full-res phone photo would be silently rejected.
+        var shotWrite = App.makeVariant(S.ss.url, 1000, 0.65)
+          .then(function (small) {
+            var url = small || S.ss.url;
+            if (url.length > 390000) throw new Error('too large');
+            return App.DB.ref('order_shots/' + id).set(url);
+          })
+          .then(function () { App.state.shotSaved = true; })
+          .catch(function () {
+            App.toast('Payment screenshot could not be saved — send it in the WhatsApp chat instead', 'err');
+          });
       }
 
       // Auto-save the phone the customer typed during checkout into their
@@ -918,7 +954,8 @@
     var waWrap = el('doneWa');
     var link = null;
     // ONE switch, set in the panel: send order details to WhatsApp.
-    if (cfg.whatsappAuto === true) {
+    var waAuto = cfg.whatsappAuto === true || cfg.whatsappSubmitEnabled === true;
+    if (waAuto) {
       link = App.waLink(cfg.whatsappNumber || cfg.ownerPhone, App.buildWaMessage(order, cfg));
     }
 
@@ -953,7 +990,7 @@
       // The panel has ONE switch for this. On = jump straight to WhatsApp
       // (a beat only, so the confirmation can paint first). Off = nothing
       // automatic; the button below does the same job by hand.
-      if (cfg.whatsappAuto === true) {
+      if (cfg.whatsappAuto === true || cfg.whatsappSubmitEnabled === true) {
         setTimeout(function () { openWhatsApp(link, id, order, cfg); }, 100);
       }
     } else if (waWrap) {
@@ -1092,10 +1129,10 @@
 
     Array.prototype.forEach.call(document.querySelectorAll('.pay-opt'), function (o) {
       o.addEventListener('click', function () {
-        // Choosing a method opens the next step: the WAMD details, the final
-        // summary and the submit button all live on step 4.
+        // Choosing a method only selects it. The customer must tap
+        // "Continue to confirm" to advance — an accidental tap on the card
+        // used to skip the summary entirely.
         setPay(o.getAttribute('data-pay'));
-        goStep(4);
       });
     });
 

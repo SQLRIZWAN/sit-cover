@@ -105,7 +105,7 @@
     addressAr: 'جليب الشيوخ، الكويت',
     shopLat: 29.2844,
     shopLng: 47.9656,
-    whatsappSubmitEnabled: true,
+    whatsappAuto: true,
     visitorCountingEnabled: false,
     email: '',
     instagram: '',
@@ -1215,14 +1215,44 @@
 
   function initDrawer() {
     var drawer = $('#drawer'), mask = $('#drawerMask');
-    function open() { drawer.classList.add('on'); mask.classList.add('on'); }
-    function close() { drawer.classList.remove('on'); mask.classList.remove('on'); }
+    var lastFocus = null;
+    function open() {
+      lastFocus = document.activeElement;
+      drawer.classList.add('on'); mask.classList.add('on');
+      document.body.style.overflow = 'hidden';
+      var dc = $('#drClose');
+      if (dc) dc.focus();
+    }
+    function close() {
+      drawer.classList.remove('on'); mask.classList.remove('on');
+      document.body.style.overflow = '';
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+      lastFocus = null;
+    }
     var mb = $('#menuBtn');
     if (mb) mb.addEventListener('click', open);
     var dc = $('#drClose');
     if (dc) dc.addEventListener('click', close);
     if (mask) mask.addEventListener('click', close);
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && drawer.classList.contains('on')) { close(); return; }
+      if (e.key !== 'Tab' || !drawer.classList.contains('on')) return;
+      var f = drawer.querySelectorAll('a[href], button:not([disabled])');
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  }
+
+  // Home topbar floats transparent over the hero; once the customer scrolls
+  // past it, turn it into a solid sticky bar so menu/cart never disappear.
+  function initHomeTopbar() {
+    var tb = document.querySelector('.home-page .topbar');
+    if (!tb) return;
+    var onScroll = function () { tb.classList.toggle('top-solid', window.scrollY > 140); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
   }
 
   var TR_LANGS = ['en', 'ar', 'ur', 'hi', 'fa', 'tr'];
@@ -1408,17 +1438,20 @@
     trackVisitor(DB);
   }
 
-  var myWatch = { idsRef: null, idsCb: null, rows: [], seen: {}, vals: {}, fid: '' };
+  var myWatch = { idsRefs: [], idsCb: null, rows: [], seen: {}, vals: {}, fid: '', uid: '' };
 
   function detachMyOrderIds() {
-    if (myWatch.idsRef && myWatch.idsCb) myWatch.idsRef.off('value', myWatch.idsCb);
-    myWatch.idsRef = null;
+    myWatch.idsRefs.forEach(function (ref) {
+      if (ref && myWatch.idsCb) ref.off('value', myWatch.idsCb);
+    });
+    myWatch.idsRefs = [];
     myWatch.idsCb = null;
     myWatch.rows.forEach(function (r) { r.ref.off('value', r.cb); });
     myWatch.rows = [];
     myWatch.seen = {};
     myWatch.vals = {};
     myWatch.fid = '';
+    myWatch.uid = '';
   }
 
   function publishMyOrders() {
@@ -1446,7 +1479,9 @@
   }
 
   function syncMyOrders() {
-    if (!App.DB || App.fbUid === myWatch.fid) return;
+    if (!App.DB) return;
+    var uid = App.currentUid() || '';
+    if (App.fbUid === myWatch.fid && uid === myWatch.uid) return;
     watchMyOrderIds(App.DB);
   }
 
@@ -1455,7 +1490,8 @@
     App.state.allOrders = [];
     App.state.myOrders = [];
     var fid = App.fbUid || '';
-    if (!fid) { paintMyOrdersBadge(); fire('myOrders'); return; }
+    var uid = App.currentUid() || '';
+    if (!fid && !uid) { paintMyOrdersBadge(); fire('myOrders'); return; }
     var cb = function (s) {
       var ids = [];
       s.forEach(function (ch) { if (ch.key) ids.push(ch.key); });
@@ -1463,9 +1499,16 @@
       publishMyOrders();
     };
     myWatch.fid = fid;
-    myWatch.idsRef = DB.ref('stats/myorders/' + fid);
+    myWatch.uid = uid;
     myWatch.idsCb = cb;
-    myWatch.idsRef.on('value', cb, function (e) { console.warn('myorders', e); });
+    var keys = [];
+    if (fid) keys.push(fid);
+    if (uid && uid !== fid) keys.push(uid);
+    myWatch.idsRefs = keys.map(function (key) {
+      var ref = DB.ref('stats/myorders/' + key);
+      ref.on('value', cb, function (e) { console.warn('myorders', e); });
+      return ref;
+    });
   }
 
   function myOrdersFrom(all) {
@@ -1794,6 +1837,7 @@
     try { applyConfigUI(); } catch (e) { console.error('configUI', e); }
     try { App.applySEO(); } catch (e) { console.error('seo', e); }
     initDrawer();
+    initHomeTopbar();
     initTranslate();
     initPreloader();
     App.bindImgFallback();

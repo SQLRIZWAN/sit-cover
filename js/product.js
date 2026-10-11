@@ -7,6 +7,18 @@
   var mediaCache = {};
   var mediaAsked = {};
   var root = document.getElementById('pdRoot');
+  var loadFailed = false;
+
+  // Nothing loaded within ~10 s (bad connection / offline) — show a retry
+  // instead of an endless "Loading product…" spinner.
+  setTimeout(function () {
+    if (!App.loaded.products && root && !loadFailed) {
+      loadFailed = true;
+      root.innerHTML = '<div class="empty" style="margin-top:10px"><div class="big">📡</div>' +
+        '<b>Still loading…</b>The shop database is slow to respond. Check your internet and retry.' +
+        '<div style="margin-top:16px"><button class="btn btn-pri" onclick="location.reload()">↻ Retry</button></div></div>';
+    }
+  }, 10000);
 
   function ensureMedia(p, cb) {
     if (p && p.media && p.media.length) { mediaCache[p.id] = p.media; cb(); return; }

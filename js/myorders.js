@@ -149,16 +149,19 @@
       '</div>' +
       '<div class="mo-actions">' +
         '<a class="btn btn-ghost btn-sm" href="index.html">Shop again</a>' +
-        '<a class="btn btn-ghost btn-sm" id="moWa" href="' + esc(waHref()) + '" target="_blank" rel="noopener">💬 Ask the shop</a>' +
+        '<a class="btn btn-ghost btn-sm" id="moWa" href="' + esc(waHref(o)) + '" target="_blank" rel="noopener">💬 Ask the shop</a>' +
       '</div>' +
     '</article>';
   }
 
-  function waHref() {
+  function waHref(o) {
     var cfg = App.cfg();
     var num = String(cfg.whatsappNumber || cfg.ownerPhone || '').replace(/[^0-9]/g, '');
     if (!num) return '#';
-    return 'https://wa.me/' + num + '?text=' + encodeURIComponent('Hi, I am checking on my order.');
+    var txt = 'Hi, I am checking on my order';
+    if (o && o.id) txt += ' #' + String(o.id).slice(-8).toUpperCase();
+    txt += '.';
+    return 'https://wa.me/' + num + '?text=' + encodeURIComponent(txt);
   }
 
   var query = '';
